@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -10,13 +10,15 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {loginUser} from '../services/authService';
-import {useNavigation} from '@react-navigation/native';
+import { loginUser } from '../services/authService';
+import { useNavigation } from '@react-navigation/native';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons'; // Importing MaterialIcons
 
 export default function LoginScreen() {
   const [userName, setUserName] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false); // State for toggling password visibility
 
   const navigation = useNavigation();
 
@@ -27,7 +29,7 @@ export default function LoginScreen() {
     }
     setLoading(true);
     try {
-      const data = await loginUser({userName, password});
+      const data = await loginUser({ userName, password });
 
       if (data.data?.accessToken) {
         await AsyncStorage.setItem('accessToken', data.data.accessToken);
@@ -45,7 +47,7 @@ export default function LoginScreen() {
       setLoading(false);
       Alert.alert(
         'Login Failed',
-        error instanceof Error ? error.message : 'An unknown error occurred.',
+        error instanceof Error ? error.message : 'An unknown error occurred.'
       );
     }
   };
@@ -62,14 +64,26 @@ export default function LoginScreen() {
         onChangeText={setUserName}
       />
 
-      <TextInput
-        style={styles.input}
-        placeholder="Enter your password"
-        placeholderTextColor="#AAA"
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword}
-      />
+      <View style={styles.passwordContainer}>
+        <TextInput
+          style={styles.input}
+          placeholder="Enter your password"
+          placeholderTextColor="#AAA"
+          secureTextEntry={!showPassword} // Toggling password visibility
+          value={password}
+          onChangeText={setPassword}
+        />
+        <TouchableOpacity
+          onPress={() => setShowPassword(!showPassword)} // Toggle visibility
+          style={styles.eyeIcon}
+        >
+          <MaterialIcons
+            name={showPassword ? 'visibility-off' : 'visibility'}
+            size={24}
+            color="#000"
+          />
+        </TouchableOpacity>
+      </View>
 
       {loading ? (
         <ActivityIndicator size="large" color="#FFD700" />
@@ -105,6 +119,16 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     color: '#000',
   },
+  passwordContainer: {
+    width: '100%',
+    position: 'relative',
+  },
+  eyeIcon: {
+    position: 'absolute',
+    right: 15,
+    top: '50%',
+    transform: [{ translateY: -12 }],
+  },
   button: {
     width: '90%',
     backgroundColor: '#F7C855',
@@ -113,7 +137,7 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     elevation: 5,
     shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 3.5,
     marginTop: 20,

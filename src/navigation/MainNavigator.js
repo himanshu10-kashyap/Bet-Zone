@@ -8,9 +8,18 @@ import { View, Text } from 'react-native';
 import AccountStatement from '../screens/AccountStatement';
 import ChangePassword from '../screens/ChangePassword';
 import LotteryPurchaseScreen from '../screens/LotteryPurchaseScreen';
+import ProfitLossScreen from '../screens/ProfitLossScreen';
+import { createStackNavigator } from '@react-navigation/stack';
+import LotteryProfitAndLossScreen from '../screens/LotteryProfitAndLossScreen';
+import MarketDetailsScreen from '../screens/MarketDetailsScreen';
+import ColorgameProfitAndLossScreen from '../screens/ColorgameProfitAndLossScreen';
+import MarketDetailsScreenCg from '../screens/MarketDetailsScreenCg';
+import RunnerDetailsScreen from '../screens/RunnerDetailsScreen';
+import BetHistoryScreen from '../screens/BetHistory';
 
 const Drawer = createDrawerNavigator();
 const Tab = createBottomTabNavigator();
+const Stack = createStackNavigator();
 
 function DummyScreen({ title }) {
     return (
@@ -58,12 +67,12 @@ function BottomTabs({ route }) {
             <Tab.Screen name="Open Bets" component={OpenBets} />
             <Tab.Screen name="Lottery" children={() => <DummyScreen title="Lottery Screen" />} />
             <Tab.Screen name="Color Game" children={() => <DummyScreen title="Color Game Screen" />} />
-            <Tab.Screen name="Menu" children={() => <DummyScreen title="Menu Screen" />} />
+            {/* <Tab.Screen name="Menu" children={() => <DummyScreen title="Menu Screen" />} /> */}
         </Tab.Navigator>
     );
 }
 
-export default function MainNavigator() {
+function DrawerNavigator() {
     return (
         <Drawer.Navigator
             screenOptions={{
@@ -104,7 +113,7 @@ export default function MainNavigator() {
 
             <Drawer.Screen
                 name="Winning Results"
-                component={BottomTabs}
+                component={ProfitLossScreen}
                 options={{
                     title: 'Winning Results',
                 }}
@@ -112,7 +121,7 @@ export default function MainNavigator() {
 
             <Drawer.Screen
                 name="Profit & Loss"
-                component={BottomTabs}
+                component={ProfitLossScreen}
                 options={{
                     title: 'Profit & Loss',
                 }}
@@ -120,7 +129,7 @@ export default function MainNavigator() {
 
             <Drawer.Screen
                 name="Bet History"
-                component={BottomTabs}
+                component={BetHistoryScreen}
                 options={{
                     title: 'Bet History',
                 }}
@@ -143,3 +152,36 @@ export default function MainNavigator() {
         </Drawer.Navigator>
     );
 }
+
+export default function MainNavigator() {
+    return (
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="MainDrawer" component={DrawerNavigator} />
+        <Stack.Screen
+          name="LotteryProfitAndLossScreen"
+          component={LotteryProfitAndLossScreen}
+          options={{ headerShown: true, title: 'Lottery Profit & Loss' }}
+        />
+        <Stack.Screen
+          name="MarketDetailsScreen"
+          component={MarketDetailsScreen}
+          options={{ headerShown: true, title: 'Bet History' }}
+        />
+        <Stack.Screen
+          name="ColorgameProfitAndLossScreen"
+          component={ColorgameProfitAndLossScreen}
+          options={{ headerShown: true, title: 'Color Game P&L' }}
+        />
+        <Stack.Screen
+          name="MarketDetailsScreenCg"
+          component={MarketDetailsScreenCg}
+          options={{ headerShown: true, title: 'Market Profit & Loss' }}
+        />
+        <Stack.Screen
+          name="RunnerDetailsScreen"
+          component={RunnerDetailsScreen}
+          options={{ headerShown: true, title: 'Bet History' }}
+        />
+      </Stack.Navigator>
+    );
+  }

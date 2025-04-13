@@ -81,7 +81,7 @@ export const fetchOpenBetsMarketID = async () => {
 
 export const fetchOpenBets = async (marketId) => {
   try {
-    const data = await makeRequest(`/user-currentOrderHistory/${marketId}`);
+    const data = await makeRequest(`/user-currentOrderHistory/${marketId}`, 'GET', null, true);
     return data.data || []; // Always return array
   } catch (error) {
     Alert.alert('Error', error.message);
@@ -102,21 +102,18 @@ export const fetchSliderImages = async () => {
   }
 };
 
-export const fetchUserWallet = async () => {
+export const fetchUserWallet = async (userId) => {
   try {
-    // Get userId from storage
-    const userId = await AsyncStorage.getItem('userId');
-    if (!userId) throw new Error('User authentication required');
+    if (!userId) throw new Error('User ID is required');
 
-    // Fetch wallet data
-    const response = await makeRequest(`/user/view-wallet/${userId}`);
-    
-    // Validate response
+    const response = await makeRequest(`/user/view-wallet/${userId}`, 'GET', null, true);
+
+    console.log('Full Wallet Response:', response);
+
     if (!response.data || typeof response.data.balance === 'undefined') {
       throw new Error('Invalid wallet data structure');
     }
 
-    // Calculate exposure_balance
     const exposure_balance = response.data.marketListExposure
       ? response.data.marketListExposure.reduce((total, marketExposure) => {
           const exposureAmount = Object.values(marketExposure)[0];
@@ -124,6 +121,8 @@ export const fetchUserWallet = async () => {
         }, 0)
       : 0;
 
+      console.log('Exposure Balance:', exposure_balance);
+      console.log('Wallet Data:', ...response.data);
     return {
       ...response.data,
       exposure_balance,
@@ -131,10 +130,7 @@ export const fetchUserWallet = async () => {
 
   } catch (error) {
     console.error('Wallet fetch error:', error);
-    Alert.alert(
-      'Wallet Error',
-      error.message || 'Could not load wallet data'
-    );
+    Alert.alert('Wallet Error', error.message || 'Could not load wallet data');
     throw error;
   }
 };
@@ -156,7 +152,7 @@ export const fetchAccountStatement = async ({
       ...(dataType && { dataType }),
     }).toString();
 
-    const data = await makeRequest(`/user-account-statement?${queryParams}`);
+    const data = await makeRequest(`/user-account-statement?${queryParams}`, 'GET', null, true);
     
     // Validate and return the data structure
     if (!data || typeof data.success === 'undefined') {
@@ -176,6 +172,359 @@ export const fetchAccountStatement = async ({
     Alert.alert(
       'Account Statement Error',
       error.message || 'Could not load account statement'
+    );
+    throw error;
+  }
+};
+
+export const changePassword = async ({ oldPassword, password, confirmPassword }) => {
+  try {
+    const data = await makeRequest('/user/resetpassword', 'POST', {
+      oldPassword,
+      password,
+      confirmPassword
+    }, true);
+
+    return data;
+  } catch (error) {
+    Alert.alert('Password Change Error', error.message || 'Unable to change password.');
+    throw error;
+  }
+};
+
+export const fetchProfitLoss = async ({
+  page = 1,
+  limit = 10,
+  startDate = '',
+  endDate = '',
+  search = '',
+  dataType = 'live'
+} = {}) => {
+  try {
+    // Build query string from parameters
+    const queryParams = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString(),
+      startDate,
+      endDate,
+      search,
+      dataType,
+    }).toString();
+
+    const data = await makeRequest(`/profit_loss?${queryParams}`, 'GET', null, true);
+
+    console.log("queryParams", queryParams);
+    
+
+    // Validate and return the structured response
+    return {
+      data: data.data || [],
+      success: data.success || false,
+      successCode: data.successCode || null,
+      panelStatusCode: data.panelStatusCode || null,
+      message: data.message || '',
+      pagination: data.pagination || {
+        page: 1,
+        limit: 10,
+        totalPages: 1,
+        totalItems: 0,
+      },
+    };
+
+  } catch (error) {
+    console.error('Profit/Loss Fetch Error:', error);
+    Alert.alert('Profit/Loss Error', error.message || 'Could not load profit/loss data');
+    throw error;
+  }
+};
+
+export const fetchLotteryProfitLoss = async ({
+  page = 1,
+  limit = 10,
+  searchMarketName = ''
+} = {}) => {
+  try {
+    const queryParams = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString(),
+      searchMarketName,
+    }).toString();
+
+    const data = await makeRequest(`/lottery-profit-loss?${queryParams}`, 'GET', null, true);
+
+    // Log the full response for debugging
+    console.log("Lottery Profit/Loss Response:", data);
+
+    return {
+      data: data.data || [],
+      success: data.success || false,
+      successCode: data.successCode || null,
+      panelStatusCode: data.panelStatusCode || null,
+      message: data.message || '',
+      pagination: data.pagination || {
+        page: 1,
+        limit: 10,
+        totalPages: 1,
+        totalItems: 0,
+      },
+    };
+  } catch (error) {
+    console.error('Lottery Profit/Loss Fetch Error:', error);
+    Alert.alert('Lottery Profit/Loss Error', error.message || 'Could not load data');
+    throw error;
+  }
+};
+
+export const fetchLotteryBetHistoryProfitLoss = async (marketId) => {
+  try {
+    if (!marketId) {
+      throw new Error('Market ID is required');
+    }
+
+    const data = await makeRequest(`/lottery-betHistory-profitLoss/${marketId}`, 'GET', null, true);
+
+    // Log the full response for debugging
+    console.log("Lottery Bet History Profit/Loss Response:", data);
+
+    // Validate and structure the response
+    return {
+      data: data.data || [],
+      success: data.success || false,
+      successCode: data.successCode || null,
+      panelStatusCode: data.panelStatusCode || null,
+      message: data.message || 'Success',
+      pagination: data.pagination || null,
+    };
+  } catch (error) {
+    console.error('Lottery Bet History Profit/Loss Error:', error);
+    Alert.alert(
+      'Lottery Bet History Error',
+      error.message || 'Could not load bet history data'
+    );
+    throw error;
+  }
+};
+
+export const fetchProfitLossByMarketCg = async ({gameId, page = 1, limit = 10, searchMarketName = '' } = {}) => {
+  try {
+    if (!gameId) {
+      throw new Error('Game ID is required');
+    }
+
+    const queryParams = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString(),
+      searchMarketName,
+    }).toString();
+
+    const endpoint = `/profit_loss_market/${gameId}?${queryParams}`;
+    const data = await makeRequest(endpoint, 'GET', null, true);
+
+    console.log('Profit Loss By Market Response:', data);
+
+    return {
+      data: data.data || [],
+      success: data.success || false,
+      successCode: data.successCode || null,
+      panelStatusCode: data.panelStatusCode || null,
+      message: data.message || '',
+      pagination: data.pagination || {
+        page: 1,
+        limit: 10,
+        totalItems: 0,
+        totalPages: 1,
+      },
+    };
+  } catch (error) {
+    console.error('Profit Loss By Market Error:', error);
+    Alert.alert('Error', error.message || 'Could not fetch profit/loss by market');
+    throw error;
+  }
+};
+
+export const fetchCgBetHistoryProfitLoss = async (marketId) => {
+  try {
+    if (!marketId) {
+      throw new Error('Market ID is required');
+    }
+
+    const data = await makeRequest(`/profit_loss_runner/${marketId}`, 'GET', null, true);
+
+    // Log the full response for debugging
+    console.log("Color Game Bet History Profit/Loss Response:", data);
+
+    // Validate and structure the response
+    return {
+      data: data.data || [],
+      success: data.success || false,
+      successCode: data.successCode || null,
+      panelStatusCode: data.panelStatusCode || null,
+      message: data.message || 'Success',
+      pagination: data.pagination || null,
+    };
+  } catch (error) {
+    console.error('Color Game Bet History Profit/Loss Error:', error);
+    Alert.alert(
+      'Color Game Bet History Error',
+      error.message || 'Could not load bet history data'
+    );
+    throw error;
+  }
+};
+
+export const fetchRunnerDetails = async ({runnerId, page = 1, limit = 10 } = {}) => {
+  try {
+    if (!runnerId) {
+      throw new Error('Runner Id is required');
+    }
+
+    const queryParams = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString(),
+    }).toString();
+
+    const endpoint = `/get-user-betList/${runnerId}?${queryParams}`;
+    const data = await makeRequest(endpoint, 'GET', null, true);
+
+    console.log('Profit Loss By Market Response:', data);
+
+    return {
+      data: data.data || [],
+      success: data.success || false,
+      successCode: data.successCode || null,
+      panelStatusCode: data.panelStatusCode || null,
+      message: data.message || '',
+      pagination: data.pagination || {
+        page: 1,
+        limit: 10,
+        totalItems: 0,
+        totalPages: 1,
+      },
+    };
+  } catch (error) {
+    console.error('Profit Loss By Market Error:', error);
+    Alert.alert('Error', error.message || 'Could not fetch profit/loss by market');
+    throw error;
+  }
+};
+
+export const fetchGameBetHistory = async ({ gameId, page = 1, limit = 10, startDate = '', endDate = '', dataType = '', type = '' } = {}) => {
+  try {
+    if (!gameId) {
+      throw new Error('Game ID is required');
+    }
+
+    // Build query string from parameters
+    const queryParams = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString(),
+      ...(startDate && { startDate }),
+      ...(endDate && { endDate }),
+      dataType,
+      type,
+    }).toString();
+
+    const data = await makeRequest(`/user-betHistory/${gameId}?${queryParams}`, 'GET', null, true);
+
+    // Log the full response for debugging
+    console.log("Game Bet History Response:", data);
+
+    // Validate and structure the response
+    return {
+      data: data.data || [],
+      success: data.success || false,
+      successCode: data.successCode || null,
+      panelStatusCode: data.panelStatusCode || null,
+      message: data.message || '',
+      pagination: data.pagination || {
+        page: 1,
+        limit: 10,
+        totalItems: 0,
+        totalPages: 1,
+      },
+    };
+  } catch (error) {
+    console.error('Game Bet History Error:', error);
+    Alert.alert(
+      'Bet History Error',
+      error.message || 'Could not load bet history data'
+    );
+    throw error;
+  }
+};
+
+export const fetchLotteryBetHistory = async ({ page = 1, limit = 10, startDate = '', endDate = '', dataType = '', type = '' } = {}) => {
+  try {
+    // Build query string from parameters
+    const queryParams = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString(),
+      ...(startDate && { startDate }),
+      ...(endDate && { endDate }),
+      dataType,
+      type,
+    }).toString();
+
+    const data = await makeRequest(`/lottery-bet-history?${queryParams}`, 'GET', null, true);
+
+    // Log the full response for debugging
+    console.log("Lottery Bet History Response:", data);
+
+    // Validate and structure the response
+    return {
+      data: data.data || [],
+      success: data.success || false,
+      successCode: data.successCode || null,
+      panelStatusCode: data.panelStatusCode || null,
+      message: data.message || '',
+      pagination: data.pagination || {
+        page: 1,
+        limit: 10,
+        totalPages: 1,
+        totalItems: 0,
+      },
+    };
+  } catch (error) {
+    console.error('Lottery Bet History Error:', error);
+    Alert.alert(
+      'Lottery Bet History Error',
+      error.message || 'Could not load lottery bet history'
+    );
+    throw error;
+  }
+};
+
+export const fetchGamesList = async ({ page = 1, pageSize = 10 } = {}) => {
+  try {
+    // Build query string from parameters
+    const queryParams = new URLSearchParams({
+      page: page.toString(),
+      pageSize: pageSize.toString(),
+    }).toString();
+
+    const data = await makeRequest(`/user-games?${queryParams}`, 'GET', null, true);
+
+    // Log the full response for debugging
+    console.log("Games List Response:", data);
+
+    // Validate and structure the response
+    return {
+      data: data.data || [],
+      success: data.success || false,
+      successCode: data.successCode || null,
+      panelStatusCode: data.panelStatusCode || null,
+      message: data.message || '',
+      pagination: data.pagination || {
+        page: 1,
+        pageSize: 10,
+        totalPages: 1,
+      },
+    };
+  } catch (error) {
+    console.error('Games List Error:', error);
+    Alert.alert(
+      'Games List Error',
+      error.message || 'Could not load games list'
     );
     throw error;
   }

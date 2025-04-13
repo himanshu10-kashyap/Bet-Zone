@@ -5,18 +5,17 @@ import {
   StyleSheet, 
   FlatList, 
   Dimensions, 
-  ScrollView, 
   ActivityIndicator,
   TouchableOpacity,
   Platform 
 } from 'react-native';
 import { Dropdown } from 'react-native-element-dropdown';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { fetchAccountStatement } from '../api';
+import { fetchAccountStatement } from '../services/authService.js';
 
 const { width } = Dimensions.get('window');
 
-const AccountStatementScreen = () => {
+const AccountStatement = () => {
     const [pageSize, setPageSize] = useState(10);
     const [currentPage, setCurrentPage] = useState(1);
     const [isLoading, setIsLoading] = useState(false);
@@ -25,7 +24,7 @@ const AccountStatementScreen = () => {
     const [transactions, setTransactions] = useState([]);
     const [totalPages, setTotalPages] = useState(1);
     const [totalItems, setTotalItems] = useState(0);
-    const [dataType, setDataType] = useState('backup');
+    const [dataType, setDataType] = useState('live'); // Changed default to 'live'
     
     // Date filter states
     const [startDate, setStartDate] = useState(null);
@@ -141,38 +140,35 @@ const AccountStatementScreen = () => {
         }
     };
 
-    const renderItem = ({ item }) => {
+    const renderItem = ({ item, index }) => {
         const formattedAmount = formatAmount(item);
         const date = new Date(item.date);
         
         return (
-            <View style={styles.card}>
+            <View style={[
+                styles.card,
+                index % 2 === 0 ? styles.evenItem : styles.oddItem
+            ]}>
                 <View style={styles.rowBetween}>
                     <Text style={styles.label}>Date:</Text>
-                    <Text style={styles.value}>
+                    <Text style={styles.dateValue}>
                         {date.toLocaleDateString()} {date.toLocaleTimeString()}
                     </Text>
                 </View>
                 <View style={styles.rowBetween}>
-                    <Text style={styles.label}>Transaction ID:</Text>
-                    <Text style={styles.value} numberOfLines={1} ellipsizeMode="tail">
-                        {item.transactionId}
-                    </Text>
-                </View>
-                <View style={styles.rowBetween}>
                     <Text style={styles.label}>Amount:</Text>
-                    <Text style={[styles.value, { color: formattedAmount.color }]}>
+                    <Text style={[styles.amountValue, { color: formattedAmount.color }]}>
                         {formattedAmount.amount}
                     </Text>
                 </View>
                 <View style={styles.rowBetween}>
                     <Text style={styles.label}>Balance:</Text>
-                    <Text style={styles.value}>{item.currentBalance || item.balance}</Text>
+                    <Text style={styles.balanceValue}>{item.currentBalance || item.balance}</Text>
                 </View>
                 {item.remarks && (
                     <View style={styles.rowBetween}>
                         <Text style={styles.label}>Remarks:</Text>
-                        <Text style={styles.value}>{item.remarks}</Text>
+                        <Text style={styles.remarksValue}>{item.remarks}</Text>
                     </View>
                 )}
             </View>
@@ -196,44 +192,46 @@ const AccountStatementScreen = () => {
 
             {/* Date Filters */}
             <View style={styles.dateFilterContainer}>
-                <View style={styles.datePickerContainer}>
-                    <Text style={styles.dateLabel}>From:</Text>
-                    <TouchableOpacity 
-                        style={styles.dateInput}
-                        onPress={() => setShowStartDatePicker(true)}
-                    >
-                        <Text>{formatDisplayDate(startDate)}</Text>
-                    </TouchableOpacity>
-                    {showStartDatePicker && (
-                        <DateTimePicker
-                            value={startDate || new Date()}
-                            mode="date"
-                            display="default"
-                            onChange={handleStartDateChange}
-                            maximumDate={endDate || new Date()}
-                        />
-                    )}
-                </View>
+                <View style={styles.dateInputGroup}>
+                    <View style={styles.dateInputContainer}>
+                        <Text style={styles.dateLabel}>From:</Text>
+                        <TouchableOpacity 
+                            style={styles.dateInput}
+                            onPress={() => setShowStartDatePicker(true)}
+                        >
+                            <Text style={styles.dateInputText}>{formatDisplayDate(startDate)}</Text>
+                        </TouchableOpacity>
+                        {showStartDatePicker && (
+                            <DateTimePicker
+                                value={startDate || new Date()}
+                                mode="date"
+                                display="default"
+                                onChange={handleStartDateChange}
+                                maximumDate={endDate || new Date()}
+                            />
+                        )}
+                    </View>
 
-                <View style={styles.datePickerContainer}>
-                    <Text style={styles.dateLabel}>To:</Text>
-                    <TouchableOpacity 
-                        style={styles.dateInput}
-                        onPress={() => setShowEndDatePicker(true)}
-                        disabled={!startDate}
-                    >
-                        <Text>{formatDisplayDate(endDate)}</Text>
-                    </TouchableOpacity>
-                    {showEndDatePicker && (
-                        <DateTimePicker
-                            value={endDate || new Date()}
-                            mode="date"
-                            display="default"
-                            onChange={handleEndDateChange}
-                            minimumDate={startDate}
-                            maximumDate={new Date()}
-                        />
-                    )}
+                    <View style={styles.dateInputContainer}>
+                        <Text style={styles.dateLabel}>To:</Text>
+                        <TouchableOpacity 
+                            style={styles.dateInput}
+                            onPress={() => setShowEndDatePicker(true)}
+                            disabled={!startDate}
+                        >
+                            <Text style={styles.dateInputText}>{formatDisplayDate(endDate)}</Text>
+                        </TouchableOpacity>
+                        {showEndDatePicker && (
+                            <DateTimePicker
+                                value={endDate || new Date()}
+                                mode="date"
+                                display="default"
+                                onChange={handleEndDateChange}
+                                minimumDate={startDate}
+                                maximumDate={new Date()}
+                            />
+                        )}
+                    </View>
                 </View>
 
                 {(startDate || endDate) && (
@@ -264,8 +262,8 @@ const AccountStatementScreen = () => {
                 <Dropdown
                     style={styles.dropdown}
                     data={[
-                        { label: 'All Data', value: 'backup' },
-                        { label: 'Live Data', value: 'live' }
+                        { label: 'Live Data', value: 'live' },
+                        { label: 'Backup Data', value: 'backup' }
                     ]}
                     labelField="label"
                     valueField="value"
@@ -282,7 +280,7 @@ const AccountStatementScreen = () => {
             ) : (
                 <>
                     <Text style={styles.summaryText}>
-                        Showing {transactions.length} of {totalItems} transactions
+                    {transactions.length} of {totalItems} transaction{totalItems !== 1 ? 's' : ''}
                     </Text>
                     
                     <FlatList
@@ -323,10 +321,14 @@ const styles = StyleSheet.create({
     dateFilterContainer: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'center',
+        alignItems: 'flex-end',
         marginBottom: 15,
     },
-    datePickerContainer: {
+    dateInputGroup: {
+        flex: 1,
+        flexDirection: 'row',
+    },
+    dateInputContainer: {
         flex: 1,
         marginRight: 10,
     },
@@ -344,14 +346,23 @@ const styles = StyleSheet.create({
         backgroundColor: '#fff',
         justifyContent: 'center',
     },
+    dateInputText: {
+        fontSize: 14,
+        color: '#333',
+    },
     clearButton: {
+        height: 45,
         backgroundColor: '#e0e0e0',
-        padding: 10,
+        paddingHorizontal: 15,
         borderRadius: 8,
+        justifyContent: 'center',
+        alignItems: 'center',
         marginLeft: 10,
     },
     clearButtonText: {
         color: '#333',
+        fontSize: 14,
+        fontWeight: '500',
     },
     filterContainer: {
         flexDirection: 'row',
@@ -417,6 +428,52 @@ const styles = StyleSheet.create({
     listContent: {
         paddingBottom: 20,
     },
+    evenItem: {
+        backgroundColor: '#ffffff',
+        borderLeftWidth: 4,
+        borderLeftColor: '#4CAF50', // Green accent
+    },
+    oddItem: {
+        backgroundColor: '#f9f9f9',
+        borderLeftWidth: 4,
+        borderLeftColor: '#2196F3', // Blue accent
+    },
+    card: {
+        padding: 15,
+        marginBottom: 10,
+        borderRadius: 8,
+        elevation: 1,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+    },
+    label: {
+        fontWeight: '600',
+        color: '#555',
+        width: '30%',
+    },
+    dateValue: {
+        color: '#795548', // Brown
+        flex: 1,
+        fontSize: 13,
+    },
+    amountValue: {
+        fontWeight: 'bold',
+        flex: 1,
+        fontSize: 15,
+    },
+    balanceValue: {
+        color: '#607D8B', // Blue grey
+        fontWeight: '500',
+        flex: 1,
+    },
+    remarksValue: {
+        color: '#333',
+        flex: 1,
+        fontSize: 13,
+        fontStyle: 'italic',
+    },
 });
 
-export default AccountStatementScreen;
+export default AccountStatement;
