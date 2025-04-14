@@ -590,6 +590,7 @@ export const fetchAllMarkets = async () => {
   }
 };
 
+
 export const fetchAllGameData = async () => {
   try {
     const data = await makeRequest('/user-all-gameData', 'GET', null, true);
@@ -611,6 +612,26 @@ export const fetchAllGameData = async () => {
     Alert.alert(
       'Game Data Error',
       error.message || 'Could not load game data'
+    );
+    throw error;
+  }
+};
+
+export const fetchAllMarketsByDate = async (date) => {
+  try {
+    // Format the date parameter (assuming it's a Date object or ISO string)
+    const dateParam = date ? new Date(date).toISOString().split('T')[0] : '';
+    
+    // Make the request with the date parameter
+    const data = await makeRequest(`/user/getMarkets?date=${dateParam}`, 'GET', null, true);
+    
+    // Return the data array or empty array if not available
+    return data.data || [];
+  } catch (error) {
+    console.error('All Markets Fetch Error:', error);
+    Alert.alert(
+      'Markets Error',
+      error.message || 'Could not load markets data'
     );
     throw error;
   }

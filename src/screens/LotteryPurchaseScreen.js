@@ -5,7 +5,7 @@ import {
   Platform, Modal, ActivityIndicator, TextInput, RefreshControl
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { fetchAllMarkets, fetchPurchaseHistory } from '../services/authService';
+import { fetchAllMarketsByDate, fetchPurchaseHistory } from '../services/authService';
 
 const LotteryPurchaseScreen = () => {
   const [date, setDate] = useState(new Date());
@@ -22,7 +22,8 @@ const LotteryPurchaseScreen = () => {
   const loadMarkets = async () => {
     try {
       setLoading(true);
-      const marketData = await fetchAllMarkets();
+      const formattedDate = date.toISOString().split('T')[0];
+      const marketData = await fetchAllMarketsByDate(formattedDate);
       setMarkets(marketData);
     } catch (error) {
       console.error(error);
@@ -48,7 +49,7 @@ const LotteryPurchaseScreen = () => {
 
   useEffect(() => {
     loadMarkets();
-  }, []);
+  }, [date]); // Add date as dependency to reload when date changes
 
   useEffect(() => {
     loadPurchaseHistory();
@@ -241,7 +242,6 @@ const LotteryPurchaseScreen = () => {
     </View>
   );
 };
-
 
 const styles = StyleSheet.create({
   mainContainer: {
