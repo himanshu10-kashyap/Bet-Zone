@@ -1,6 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Alert, TextInput } from 'react-native';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  TouchableOpacity, 
+  FlatList, 
+  ActivityIndicator, 
+  Alert, 
+  TextInput,
+  ScrollView
+} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import Icon from 'react-native-vector-icons/MaterialIcons';
 import { fetchLotteryProfitLoss } from '../services/authService.js';
 
 const LotteryProfitAndLossScreen = () => {
@@ -41,7 +52,6 @@ const LotteryProfitAndLossScreen = () => {
     }
   };
 
-  // Load data when component mounts or when pagination/search changes
   useEffect(() => {
     handleGetStatement();
   }, [pagination.page, pagination.limit, searchMarketName]);
@@ -58,19 +68,8 @@ const LotteryProfitAndLossScreen = () => {
     const isPositive = numericValue >= 0;
     
     return (
-      <Text style={[styles.cell, styles.amountCell, isPositive ? styles.positiveValue : styles.negativeValue]}>
+      <Text style={[styles.value, isPositive ? styles.positiveValue : styles.negativeValue]}>
         {numericValue.toFixed(2)}
-      </Text>
-    );
-  };
-
-  const renderTotalProfitLoss = () => {
-    const total = tableData.reduce((sum, item) => sum + parseFloat(item.profitLoss || 0), 0);
-    const isPositive = total >= 0;
-    
-    return (
-      <Text style={[styles.cell, styles.totalCell, isPositive ? styles.positiveValue : styles.negativeValue]}>
-        {total.toFixed(2)}
       </Text>
     );
   };
@@ -79,154 +78,161 @@ const LotteryProfitAndLossScreen = () => {
     setPagination(prev => ({
       ...prev,
       limit: newLimit,
-      page: 1 // Reset to first page when changing limit
+      page: 1
     }));
   };
 
+  const renderItem = ({ item, index }) => (
+    <View style={[
+      styles.itemContainer,
+      index % 2 === 0 ? styles.evenItem : styles.oddItem
+    ]}>
+      <View style={styles.row}>
+        <Text style={styles.label}>Sport Name:</Text>
+        <Text style={styles.sportValue}>{item.gameName}</Text>
+      </View>
+      <View style={styles.row}>
+        <Text style={styles.label}>Event Name:</Text>
+        <TouchableOpacity onPress={() => handleMarketNamePress(item.marketId, item.marketName)}>
+          <Text style={[styles.eventValue, styles.clickableText]}>{item.marketName}</Text>
+        </TouchableOpacity>
+      </View>
+      <View style={styles.row}>
+        <Text style={styles.label}>Profit & Loss:</Text>
+        {renderProfitLossValue(item.profitLoss)}
+      </View>
+      <View style={styles.row}>
+        <Text style={styles.label}>Total P&L:</Text>
+        {renderProfitLossValue(item.profitLoss)}
+      </View>
+      <View style={styles.separator} />
+    </View>
+  );
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#6a11cb" />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.mainContainer}>
+      <View style={styles.searchContainer}>
+        <Icon name="search" size={20} color="#999" style={styles.searchIcon} />
+        <TextInput
+          style={styles.searchInput}
+          value={searchMarketName}
+          onChangeText={setSearchMarketName}
+          placeholder="Search market name..."
+          placeholderTextColor="#999"
+          onSubmitEditing={handleGetStatement}
+        />
+      </View>
+
+      <View style={styles.entriesContainer}>
+        <Text style={styles.entriesLabel}>Show:</Text>
+        {[10, 25, 50, 100].map((limit) => (
+          <TouchableOpacity 
+            key={limit}
+            style={[
+              styles.entryButton, 
+              pagination.limit === limit && styles.activeEntryButton
+            ]}
+            onPress={() => handleLimitChange(limit)}
+          >
+            <Text style={[
+              styles.entryButtonText,
+              pagination.limit === limit && styles.activeEntryButtonText
+            ]}>
+              {limit}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <TouchableOpacity 
+        style={styles.button} 
+        onPress={handleGetStatement}
+        disabled={loading}
+      >
+        {loading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.buttonText}>GENERATE STATEMENT</Text>
+        )}
+      </TouchableOpacity>
+
       <ScrollView 
         style={styles.scrollContainer}
-        contentContainerStyle={styles.contentContainer}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.header}>
-          <Text style={styles.headerText}>PROFIT & LOSS STATEMENT</Text>
-        </View>
-
-        {/* Search Input */}
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Search Market Name</Text>
-          <TextInput
-            style={styles.searchInput}
-            value={searchMarketName}
-            onChangeText={setSearchMarketName}
-            placeholder="Enter market name"
-            onSubmitEditing={handleGetStatement}
+        {tableData.length > 0 ? (
+          <FlatList
+            data={tableData}
+            renderItem={renderItem}
+            keyExtractor={(item, index) => index.toString()}
+            scrollEnabled={false}
+            contentContainerStyle={styles.listContainer}
           />
-        </View>
-
-        {/* Entries per page selector */}
-        <View style={styles.entriesContainer}>
-          <Text style={styles.entriesLabel}>Entries per page:</Text>
-          <TouchableOpacity 
-            style={[styles.entryButton, pagination.limit === 10 && styles.activeEntryButton]}
-            onPress={() => handleLimitChange(10)}
-          >
-            <Text style={[styles.entryButtonText, pagination.limit === 10 && styles.activeEntryButtonText]}>10</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.entryButton, pagination.limit === 25 && styles.activeEntryButton]}
-            onPress={() => handleLimitChange(25)}
-          >
-            <Text style={[styles.entryButtonText, pagination.limit === 25 && styles.activeEntryButtonText]}>25</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.entryButton, pagination.limit === 50 && styles.activeEntryButton]}
-            onPress={() => handleLimitChange(50)}
-          >
-            <Text style={[styles.entryButtonText, pagination.limit === 50 && styles.activeEntryButtonText]}>50</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.entryButton, pagination.limit === 100 && styles.activeEntryButton]}
-            onPress={() => handleLimitChange(100)}
-          >
-            <Text style={[styles.entryButtonText, pagination.limit === 100 && styles.activeEntryButtonText]}>100</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Get Statement Button */}
-        <TouchableOpacity 
-          style={styles.button} 
-          onPress={handleGetStatement}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>GENERATE STATEMENT</Text>
-          )}
-        </TouchableOpacity>
-
-        {/* Display Profit & Loss Table */}
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#007BFF" />
-          </View>
         ) : (
-          <View style={styles.tableContainer}>
-            <View style={styles.tableHeader}>
-              <Text style={[styles.headerCell, styles.sportCell]}>Sport Name</Text>
-              <Text style={[styles.headerCell, styles.eventCell]}>Event Name</Text>
-              <Text style={[styles.headerCell, styles.amountCell]}>Profit & Loss</Text>
-              <Text style={[styles.headerCell, styles.totalCell]}>Total P&L</Text>
-            </View>
-
-            {/* Table rows */}
-            {tableData.length > 0 ? (
-              <>
-                {tableData.map((row, index) => (
-                  <View 
-                    key={index} 
-                    style={[
-                      styles.tableRow, 
-                      index % 2 === 0 ? styles.evenRow : styles.oddRow
-                    ]}
-                  >
-                    <Text style={[styles.cell, styles.sportCell]}>{row.gameName}</Text>
-                    <TouchableOpacity 
-                      style={[styles.cell, styles.eventCell]} 
-                      onPress={() => handleMarketNamePress(row.marketId, row.marketName)}
-                    >
-                      <Text style={styles.clickableText}>{row.marketName}</Text>
-                    </TouchableOpacity>
-                    {renderProfitLossValue(row.profitLoss)}
-                    {renderProfitLossValue(row.profitLoss)}
-                  </View>
-                ))}
-               
-              </>
-            ) : (
-              <View style={styles.noDataContainer}>
-                <Text style={styles.noDataText}>No data available</Text>
-              </View>
-            )}
-          </View>
-        )}
-
-        {/* Pagination controls */}
-        {tableData.length > 0 && (
-          <View style={styles.paginationContainer}>
-            <TouchableOpacity
-              style={[styles.paginationButton, pagination.page === 1 && styles.disabledButton]}
-              onPress={() => {
-                if (pagination.page > 1) {
-                  setPagination(prev => ({ ...prev, page: prev.page - 1 }));
-                }
-              }}
-              disabled={pagination.page === 1}
-            >
-              <Text style={styles.paginationButtonText}>Previous</Text>
-            </TouchableOpacity>
-            
-            <Text style={styles.paginationText}>
-              Page {pagination.page} of {pagination.totalPages}
-            </Text>
-            
-            <TouchableOpacity
-              style={[styles.paginationButton, pagination.page >= pagination.totalPages && styles.disabledButton]}
-              onPress={() => {
-                if (pagination.page < pagination.totalPages) {
-                  setPagination(prev => ({ ...prev, page: prev.page + 1 }));
-                }
-              }}
-              disabled={pagination.page >= pagination.totalPages}
-            >
-              <Text style={styles.paginationButtonText}>Next</Text>
-            </TouchableOpacity>
+          <View style={styles.noDataContainer}>
+            <Text style={styles.noData}>No data available</Text>
           </View>
         )}
       </ScrollView>
+
+      {tableData.length > 0 && (
+        <View style={styles.paginationContainer}>
+          <TouchableOpacity
+            style={[
+              styles.paginationButton,
+              pagination.page === 1 && styles.disabledButton
+            ]}
+            onPress={() => {
+              if (pagination.page > 1) {
+                setPagination(prev => ({ ...prev, page: prev.page - 1 }));
+              }
+            }}
+            disabled={pagination.page === 1}
+          >
+            <Icon name="chevron-left" size={20} color={pagination.page === 1 ? "#999" : "#6a11cb"} />
+            <Text style={[
+              styles.paginationButtonText,
+              pagination.page === 1 && styles.disabledText
+            ]}>
+              Previous
+            </Text>
+          </TouchableOpacity>
+          
+          <Text style={styles.paginationText}>
+            Page {pagination.page} of {pagination.totalPages}
+          </Text>
+          
+          <TouchableOpacity
+            style={[
+              styles.paginationButton,
+              pagination.page >= pagination.totalPages && styles.disabledButton
+            ]}
+            onPress={() => {
+              if (pagination.page < pagination.totalPages) {
+                setPagination(prev => ({ ...prev, page: prev.page + 1 }));
+              }
+            }}
+            disabled={pagination.page >= pagination.totalPages}
+          >
+            <Text style={[
+              styles.paginationButtonText,
+              pagination.page >= pagination.totalPages && styles.disabledText
+            ]}>
+              Next
+            </Text>
+            <Icon name="chevron-right" size={20} color={pagination.page >= pagination.totalPages ? "#999" : "#6a11cb"} />
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 };
@@ -234,171 +240,125 @@ const LotteryProfitAndLossScreen = () => {
 const styles = StyleSheet.create({
   mainContainer: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#f8f9fa',
+    paddingTop: 15,
   },
   scrollContainer: {
     flex: 1,
   },
-  contentContainer: {
-    padding: 20,
+  scrollContent: {
     paddingBottom: 30,
   },
-  header: {
-    marginBottom: 20,
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    backgroundColor: '#f8f9fa',
   },
-  headerText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#007BFF',
+  listContainer: {
+    paddingHorizontal: 15,
+    paddingTop: 15,
   },
-  inputContainer: {
+  itemContainer: {
+    backgroundColor: 'white',
+    borderRadius: 10,
+    padding: 18,
     marginBottom: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  evenItem: {
+    backgroundColor: '#ffffff',
+    borderLeftWidth: 4,
+    borderLeftColor: '#4CAF50',
+  },
+  oddItem: {
+    backgroundColor: '#f9f9f9',
+    borderLeftWidth: 4,
+    borderLeftColor: '#2196F3',
+  },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+    alignItems: 'center',
   },
   label: {
-    fontSize: 13,
-    marginBottom: 5,
-    fontWeight: '600',
-    color: '#555',
+    fontSize: 15,
+    color: '#7f8c8d',
+    fontWeight: '500',
+    flex: 1,
   },
-  button: {
-    backgroundColor: '#007BFF',
-    padding: 12,
-    alignItems: 'center',
-    borderRadius: 6,
-    marginVertical: 12,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  tableContainer: {
-    marginTop: 15,
-    borderRadius: 6,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    backgroundColor: 'white',
-  },
-  tableHeader: {
-    flexDirection: 'row',
-    backgroundColor: '#007BFF',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-  },
-  headerCell: {
-    color: 'white',
-    fontWeight: 'bold',
-    fontSize: 13,
-  },
-  sportCell: {
-    flex: 1.5,
-    justifyContent: 'center',
-  },
-  eventCell: {
+  value: {
+    fontSize: 15,
+    color: '#2c3e50',
     flex: 2,
-    justifyContent: 'center',
-  },
-  amountCell: {
-    flex: 1,
-    textAlign: 'center',
-    justifyContent: 'center',
-  },
-  totalCell: {
-    flex: 1,
     textAlign: 'right',
-    justifyContent: 'center',
+    fontWeight: '500',
   },
-  tableRow: {
-    flexDirection: 'row',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    minHeight: 40,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-    alignItems: 'center',
+  sportValue: {
+    color: '#2E7D32',
+    flex: 2,
+    textAlign: 'right',
+    fontWeight: '500',
   },
-  evenRow: {
-    backgroundColor: '#f9f9f9',
-  },
-  oddRow: {
-    backgroundColor: 'white',
-  },
-  totalRow: {
-    backgroundColor: '#e6f2ff',
-    borderTopWidth: 2,
-    borderTopColor: '#007BFF',
-  },
-  cell: {
-    fontSize: 13,
-    color: '#333',
+  eventValue: {
+    color: '#1565C0',
+    flex: 2,
+    textAlign: 'right',
+    fontWeight: '500',
   },
   clickableText: {
-    color: '#007BFF',
-    textDecorationLine: 'underline',
+    color: '#6a11cb',
+    fontWeight: 'bold',
   },
   positiveValue: {
     color: '#28a745',
-    fontWeight: 'bold',
   },
   negativeValue: {
     color: '#dc3545',
-    fontWeight: 'bold',
   },
-  totalText: {
-    fontWeight: 'bold',
-    color: '#007BFF',
-  },
-  loadingContainer: {
-    marginTop: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 100,
+  separator: {
+    height: 1,
+    backgroundColor: '#e0e0e0',
+    marginTop: 15,
+    marginBottom: 5,
   },
   noDataContainer: {
-    padding: 20,
-    alignItems: 'center',
+    flex: 1,
     justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 50,
   },
-  noDataText: {
-    fontSize: 14,
-    color: '#666',
+  noData: {
+    textAlign: 'center',
+    color: '#95a5a6',
+    fontSize: 17,
+    fontWeight: '500',
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    paddingHorizontal: 15,
+    marginHorizontal: 15,
+    marginBottom: 15,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  searchIcon: {
+    marginRight: 10,
   },
   searchInput: {
+    flex: 1,
     height: 45,
-    borderColor: '#ccc',
-    borderWidth: 1,
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    backgroundColor: 'white',
-    fontSize: 13,
-  },
-  paginationContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 15,
-    paddingHorizontal: 10,
-  },
-  paginationButton: {
-    padding: 10,
-    backgroundColor: '#007BFF',
-    borderRadius: 5,
-    minWidth: 80,
-    alignItems: 'center',
-  },
-  disabledButton: {
-    backgroundColor: '#cccccc',
-  },
-  paginationButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
-  },
-  paginationText: {
     fontSize: 14,
     color: '#333',
   },
@@ -406,9 +366,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 15,
+    paddingHorizontal: 15,
   },
   entriesLabel: {
-    fontSize: 13,
+    fontSize: 14,
     marginRight: 10,
     color: '#555',
   },
@@ -418,17 +379,72 @@ const styles = StyleSheet.create({
     marginRight: 8,
     borderRadius: 4,
     borderWidth: 1,
-    borderColor: '#007BFF',
+    borderColor: '#ddd',
+    backgroundColor: '#fff',
   },
   activeEntryButton: {
-    backgroundColor: '#007BFF',
+    backgroundColor: '#6a11cb',
+    borderColor: '#6a11cb',
   },
   entryButtonText: {
-    fontSize: 13,
-    color: '#007BFF',
+    fontSize: 14,
+    color: '#555',
   },
   activeEntryButtonText: {
-    color: 'white',
+    color: '#fff',
+  },
+  button: {
+    backgroundColor: '#6a11cb',
+    padding: 12,
+    alignItems: 'center',
+    borderRadius: 6,
+    marginHorizontal: 15,
+    marginBottom: 15,
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  paginationContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    paddingHorizontal: 15,
+    marginHorizontal: 15,
+    marginBottom: 15,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  paginationButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+  },
+  disabledButton: {
+    opacity: 0.6,
+  },
+  paginationButtonText: {
+    fontSize: 14,
+    color: '#6a11cb',
+    fontWeight: '500',
+    marginHorizontal: 5,
+  },
+  disabledText: {
+    color: '#999',
+  },
+  paginationText: {
+    fontSize: 14,
+    color: '#555',
+    fontWeight: '500',
   },
 });
 

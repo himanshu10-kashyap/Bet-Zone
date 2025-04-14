@@ -1,12 +1,12 @@
 import React from 'react';
 import AppNavigator from './src/navigation/AppNavigator';
-import { AuthProvider } from './src/services/AuthContext';
+import { AppProvider } from './src/redux/context.js';
 
 export default function App() {
   return (
-    <AuthProvider>
+    <AppProvider>
       <AppNavigator />
-    </AuthProvider>
+    </AppProvider>
 
   );
 }

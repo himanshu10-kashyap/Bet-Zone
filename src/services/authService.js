@@ -59,7 +59,7 @@ export const loginUser = async (credentials) => {
     
     // Store token if available
     if (data.token) {
-      await AsyncStorage.setItem('authToken', data.token);
+      await AsyncStorage.setItem('accessToken', data.token);
     }
     
     return data;
@@ -121,10 +121,11 @@ export const fetchUserWallet = async (userId) => {
         }, 0)
       : 0;
 
-      console.log('Exposure Balance:', exposure_balance);
-      console.log('Wallet Data:', ...response.data);
+    console.log('Exposure Balance:', exposure_balance);
+    console.log('Wallet Data:', response.data); // Removed the spread operator here
+    
     return {
-      ...response.data,
+      ...response.data, // This spread is fine - it's spreading object properties
       exposure_balance,
     };
 
@@ -453,9 +454,26 @@ export const fetchGameBetHistory = async ({ gameId, page = 1, limit = 10, startD
   }
 };
 
-export const fetchLotteryBetHistory = async ({ page = 1, limit = 10, startDate = '', endDate = '', dataType = '', type = '' } = {}) => {
+export const fetchLotteryBetHistory = async ({
+  page = 1,
+  limit = 10,
+  startDate = '',
+  endDate = '',
+  dataType = '',
+  type = '',
+} = {}) => {
   try {
-    // Build query string from parameters
+    // Prepare the request body
+    const requestBody = {
+      page,
+      limit,
+      startDate,
+      endDate,
+      dataType,
+      type,
+    };
+
+    // Optional: Build query string if backend requires both
     const queryParams = new URLSearchParams({
       page: page.toString(),
       limit: limit.toString(),
@@ -465,12 +483,11 @@ export const fetchLotteryBetHistory = async ({ page = 1, limit = 10, startDate =
       type,
     }).toString();
 
-    const data = await makeRequest(`/lottery-bet-history?${queryParams}`, 'GET', null, true);
+    // Call API using POST method with body and optional query string
+    const data = await makeRequest(`/lottery-bet-history?${queryParams}`, 'POST', requestBody, true);
 
-    // Log the full response for debugging
-    console.log("Lottery Bet History Response:", data);
+    console.log('Lottery Bet History Response:', data);
 
-    // Validate and structure the response
     return {
       data: data.data || [],
       success: data.success || false,
@@ -493,6 +510,7 @@ export const fetchLotteryBetHistory = async ({ page = 1, limit = 10, startDate =
     throw error;
   }
 };
+
 
 export const fetchGamesList = async ({ page = 1, pageSize = 10 } = {}) => {
   try {
@@ -525,6 +543,285 @@ export const fetchGamesList = async ({ page = 1, pageSize = 10 } = {}) => {
     Alert.alert(
       'Games List Error',
       error.message || 'Could not load games list'
+    );
+    throw error;
+  }
+};
+
+export const fetchUserActivityLog = async () => {
+  try {
+    const data = await makeRequest('/user-activitylog', 'GET', null, true);
+
+    // Log the full response for debugging
+    console.log("User Activity Log Response:", data);
+
+    // Validate and structure the response
+    return {
+      data: data.data || null,
+      success: data.success || false,
+      successCode: data.successCode || null,
+      panelStatusCode: data.panelStatusCode || null,
+      message: data.message || '',
+    };
+  } catch (error) {
+    console.error('User Activity Log Error:', error);
+    Alert.alert(
+      'Activity Log Error',
+      error.message || 'Could not load user activity log'
+    );
+    throw error;
+  }
+};
+
+// Lottery market 
+export const fetchAllMarkets = async () => {
+  try {
+    const data = await makeRequest('/user-getAllMarket', 'GET', null, true);
+    
+    // Return only the data array
+    return data.data || [];
+  } catch (error) {
+    console.error('All Markets Fetch Error:', error);
+    Alert.alert(
+      'Markets Error',
+      error.message || 'Could not load markets data'
+    );
+    throw error;
+  }
+};
+
+export const fetchAllGameData = async () => {
+  try {
+    const data = await makeRequest('/user-all-gameData', 'GET', null, true);
+    
+    // Log the full response for debugging
+    console.log("All Game Data Response:", data);
+
+    // Validate and structure the response
+    return {
+      data: data.data || [],
+      success: data.success || false,
+      successCode: data.successCode || null,
+      panelStatusCode: data.panelStatusCode || null,
+      message: data.message || 'Success',
+      pagination: data.pagination || null,
+    };
+  } catch (error) {
+    console.error('All Game Data Fetch Error:', error);
+    Alert.alert(
+      'Game Data Error',
+      error.message || 'Could not load game data'
+    );
+    throw error;
+  }
+};
+
+export const fetchPurchaseHistory = async (
+  marketId,
+  { page = 1, limitPerPage = 10, sem = '' } = {}
+) => {
+  try {
+    if (!marketId) throw new Error('Market ID is required');
+
+    const requestBody = {
+      marketId,
+      page,
+      limit: limitPerPage,
+      searchBySem: sem,
+    };
+
+    // Construct the URL with query params
+    const queryParams = new URLSearchParams({
+      page: page.toString(),
+      limitPerPage: limitPerPage.toString(),
+      sem: sem || '',
+    }).toString();
+
+    const url = `/purchase-history/${marketId}?${queryParams}`;
+
+    const data = await makeRequest(url, 'POST', requestBody, true);
+
+    console.log('dataaaaaaaaaaaaaaaa', data);
+
+    return data.data || [];
+  } catch (error) {
+    console.error('Purchase History Error:', error);
+    Alert.alert(
+      'Purchase History Error',
+      error.message || 'Could not load purchase history'
+    );
+    throw error;
+  }
+};
+
+export const fetchMarketsByDate = async (date) => {
+  try {
+    if (!date) {
+      throw new Error('Date is required in YYYY-MM-DD format');
+    }
+
+    // Validate date format (simple regex check)
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      throw new Error('Invalid date format. Please use YYYY-MM-DD');
+    }
+
+    const data = await makeRequest(`/user/markets-dateWise?date=${date}`, 'GET', null, true);
+
+    // Log the full response for debugging
+    console.log("Markets by Date Response:", data);
+
+    // Validate and structure the response
+    return {
+      data: data.data || [],
+      success: data.success || false,
+      successCode: data.successCode || null,
+      panelStatusCode: data.panelStatusCode || null,
+      message: data.message || '',
+      pagination: data.pagination || null,
+    };
+  } catch (error) {
+    console.error('Markets by Date Error:', error);
+    Alert.alert(
+      'Markets Error',
+      error.message || 'Could not load markets for the selected date'
+    );
+    throw error;
+  }
+};
+
+export const fetchLotteryResultsByMarket = async (marketId) => {
+  try {
+    if (!marketId) {
+      throw new Error('Market ID is required');
+    }
+
+    const data = await makeRequest(`/user-lottery-results/${marketId}`, 'GET', null, true);
+
+    // Log the full response for debugging
+    console.log("Lottery Results Response:", data);
+
+    // Validate and structure the response
+    return {
+      data: data.data || [],
+      success: data.success || false,
+      successCode: data.successCode || null,
+      panelStatusCode: data.panelStatusCode || null,
+      message: data.message || '',
+      pagination: data.pagination || null,
+    };
+  } catch (error) {
+    console.error('Lottery Results Error:', error);
+    Alert.alert(
+      'Lottery Results Error',
+      error.message || 'Could not load lottery results'
+    );
+    throw error;
+  }
+};
+
+export const fetchFilteredMarketData = async (marketId, userId) => {
+  try {
+    if (!marketId) {
+      throw new Error('Market ID is required');
+    }
+    if (!userId) {
+      throw new Error('User ID is required');
+    }
+
+    // Make POST request with marketId in URL and userId in body
+    const data = await makeRequest(
+      `/user-filter-marketData/${marketId}`,
+      'POST',
+      { userId },
+      true
+    );
+
+    // Log the full response for debugging
+    console.log("Filtered Market Data Response:", data);
+
+    // Validate and structure the response
+    return {
+      data: data.data || null,
+      success: data.success || false,
+      successCode: data.successCode || null,
+      panelStatusCode: data.panelStatusCode || null,
+      message: data.message || '',
+      pagination: data.pagination || null,
+    };
+  } catch (error) {
+    console.error('Filtered Market Data Error:', error);
+    Alert.alert(
+      'Market Data Error',
+      error.message || 'Could not load market data'
+    );
+    throw error;
+  }
+};
+
+export const fetchLotteryRanges = async () => {
+  try {
+    const data = await makeRequest('/get-range', 'GET', null, true);
+
+    // Log the full response for debugging
+    console.log("Lottery Ranges Response:", data);
+
+    // Validate and structure the response
+    return {
+      data: data.data || [],
+      success: data.success || false,
+      successCode: data.successCode || null,
+      panelStatusCode: data.panelStatusCode || null,
+      message: data.message || '',
+      pagination: data.pagination || null,
+    };
+  } catch (error) {
+    console.error('Lottery Ranges Error:', error);
+    Alert.alert(
+      'Lottery Ranges Error',
+      error.message || 'Could not load lottery ranges'
+    );
+    throw error;
+  }
+};
+
+export const searchTicket = async ({ group, series, number, sem, marketId }) => {
+  try {
+    // Validate required parameters
+    if (!group || !series || !number || !sem || !marketId) {
+      throw new Error('All parameters (group, series, number, sem, marketId) are required');
+    }
+
+    // Prepare request body
+    const requestBody = {
+      group,
+      series,
+      number,
+      sem,
+      marketId
+    };
+
+    // Make the API request
+    const data = await makeRequest('/search-ticket', 'POST', requestBody, true);
+
+    // Log the response for debugging
+    console.log('Search Ticket Response:', data);
+
+    // Validate and structure the response
+    return {
+      tickets: data.data?.tickets || [],
+      price: data.data?.price || 0,
+      sem: data.data?.sem || 0,
+      generateId: data.data?.generateId || '',
+      success: data.success || false,
+      message: data.message || '',
+      ...(data.pagination && { pagination: data.pagination })
+    };
+
+  } catch (error) {
+    console.error('Search Ticket Error:', error);
+    Alert.alert(
+      'Search Error',
+      error.message || 'Could not search for tickets'
     );
     throw error;
   }

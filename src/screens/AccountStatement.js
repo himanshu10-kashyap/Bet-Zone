@@ -4,16 +4,15 @@ import {
   Text, 
   StyleSheet, 
   FlatList, 
-  Dimensions, 
   ActivityIndicator,
   TouchableOpacity,
-  Platform 
+  Platform,
+  ScrollView,
+  Alert
 } from 'react-native';
 import { Dropdown } from 'react-native-element-dropdown';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { fetchAccountStatement } from '../services/authService.js';
-
-const { width } = Dimensions.get('window');
 
 const AccountStatement = () => {
     const [pageSize, setPageSize] = useState(10);
@@ -24,7 +23,8 @@ const AccountStatement = () => {
     const [transactions, setTransactions] = useState([]);
     const [totalPages, setTotalPages] = useState(1);
     const [totalItems, setTotalItems] = useState(0);
-    const [dataType, setDataType] = useState('live'); // Changed default to 'live'
+    const [dataType, setDataType] = useState('live');
+    const [isFocus, setIsFocus] = useState(false);
     
     // Date filter states
     const [startDate, setStartDate] = useState(null);
@@ -74,6 +74,7 @@ const AccountStatement = () => {
             setHasMore(page < response.totalPages);
         } catch (error) {
             console.error('Error fetching account statement:', error);
+            Alert.alert('Error', 'Failed to fetch account statement');
         } finally {
             setIsLoading(false);
             setIsRefreshing(false);
@@ -104,7 +105,6 @@ const AccountStatement = () => {
         setShowStartDatePicker(Platform.OS === 'ios');
         if (selectedDate) {
             setStartDate(selectedDate);
-            // Reset end date if it's before the new start date
             if (endDate && selectedDate > endDate) {
                 setEndDate(null);
             }
@@ -125,52 +125,53 @@ const AccountStatement = () => {
     };
 
     // Format transaction amount with color
-    const formatAmount = (transaction) => {
-        const amount = transaction.amount || 0;
-        if (transaction.transactionType === 'credit') {
+    const formatAmount = (amount, type) => {
+        const numericValue = parseFloat(amount || 0);
+        if (type === 'credit') {
             return { 
-                amount: `+${amount}`, 
-                color: '#4CAF50' // Green
+                amount: `+${numericValue.toFixed(2)}`, 
+                color: '#28a745' // Green
             };
         } else {
             return { 
-                amount: `-${amount}`, 
-                color: '#F44336' // Red
+                amount: `-${numericValue.toFixed(2)}`, 
+                color: '#dc3545' // Red
             };
         }
     };
 
     const renderItem = ({ item, index }) => {
-        const formattedAmount = formatAmount(item);
+        const formattedAmount = formatAmount(item.amount, item.transactionType);
         const date = new Date(item.date);
         
         return (
             <View style={[
-                styles.card,
+                styles.itemContainer,
                 index % 2 === 0 ? styles.evenItem : styles.oddItem
             ]}>
-                <View style={styles.rowBetween}>
+                <View style={styles.row}>
                     <Text style={styles.label}>Date:</Text>
-                    <Text style={styles.dateValue}>
+                    <Text style={styles.value}>
                         {date.toLocaleDateString()} {date.toLocaleTimeString()}
                     </Text>
                 </View>
-                <View style={styles.rowBetween}>
+                <View style={styles.row}>
                     <Text style={styles.label}>Amount:</Text>
-                    <Text style={[styles.amountValue, { color: formattedAmount.color }]}>
+                    <Text style={[styles.value, { color: formattedAmount.color }]}>
                         {formattedAmount.amount}
                     </Text>
                 </View>
-                <View style={styles.rowBetween}>
+                <View style={styles.row}>
                     <Text style={styles.label}>Balance:</Text>
-                    <Text style={styles.balanceValue}>{item.currentBalance || item.balance}</Text>
+                    <Text style={styles.value}>{item.currentBalance || item.balance}</Text>
                 </View>
                 {item.remarks && (
-                    <View style={styles.rowBetween}>
+                    <View style={styles.row}>
                         <Text style={styles.label}>Remarks:</Text>
-                        <Text style={styles.remarksValue}>{item.remarks}</Text>
+                        <Text style={styles.value}>{item.remarks}</Text>
                     </View>
                 )}
+                <View style={styles.separator} />
             </View>
         );
     };
@@ -179,75 +180,54 @@ const AccountStatement = () => {
         if (isLoadingMore) {
             return (
                 <View style={styles.footer}>
-                    <ActivityIndicator size="small" color="#0000ff" />
+                    <ActivityIndicator size="small" color="#6a11cb" />
                 </View>
             );
         }
         return null;
     };
 
+    if (isLoading && currentPage === 1) {
+        return (
+            <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#6a11cb" />
+            </View>
+        );
+    }
+
     return (
-        <View style={styles.container}>
-            <Text style={styles.heading}>Account Statement</Text>
-
-            {/* Date Filters */}
-            <View style={styles.dateFilterContainer}>
-                <View style={styles.dateInputGroup}>
-                    <View style={styles.dateInputContainer}>
-                        <Text style={styles.dateLabel}>From:</Text>
-                        <TouchableOpacity 
-                            style={styles.dateInput}
-                            onPress={() => setShowStartDatePicker(true)}
-                        >
-                            <Text style={styles.dateInputText}>{formatDisplayDate(startDate)}</Text>
-                        </TouchableOpacity>
-                        {showStartDatePicker && (
-                            <DateTimePicker
-                                value={startDate || new Date()}
-                                mode="date"
-                                display="default"
-                                onChange={handleStartDateChange}
-                                maximumDate={endDate || new Date()}
-                            />
-                        )}
-                    </View>
-
-                    <View style={styles.dateInputContainer}>
-                        <Text style={styles.dateLabel}>To:</Text>
-                        <TouchableOpacity 
-                            style={styles.dateInput}
-                            onPress={() => setShowEndDatePicker(true)}
-                            disabled={!startDate}
-                        >
-                            <Text style={styles.dateInputText}>{formatDisplayDate(endDate)}</Text>
-                        </TouchableOpacity>
-                        {showEndDatePicker && (
-                            <DateTimePicker
-                                value={endDate || new Date()}
-                                mode="date"
-                                display="default"
-                                onChange={handleEndDateChange}
-                                minimumDate={startDate}
-                                maximumDate={new Date()}
-                            />
-                        )}
-                    </View>
-                </View>
-
-                {(startDate || endDate) && (
-                    <TouchableOpacity 
-                        style={styles.clearButton}
-                        onPress={clearDateFilters}
-                    >
-                        <Text style={styles.clearButtonText}>Clear</Text>
-                    </TouchableOpacity>
-                )}
+        <View style={styles.mainContainer}>
+            {/* Data Source Dropdown */}
+            <View style={styles.inputContainer}>
+                <Text style={styles.label}>Data Source</Text>
+                <Dropdown
+                    style={[styles.dropdown, isFocus && { borderColor: '#6a11cb' }]}
+                    placeholderStyle={styles.placeholderStyle}
+                    selectedTextStyle={styles.selectedTextStyle}
+                    data={[
+                        { label: 'Live Data', value: 'live' },
+                        { label: 'Backup Data', value: 'backup' },
+                        { label: 'Old Data', value: 'olddata' },
+                    ]}
+                    labelField="label"
+                    valueField="value"
+                    value={dataType}
+                    onFocus={() => setIsFocus(true)}
+                    onBlur={() => setIsFocus(false)}
+                    onChange={item => {
+                        setDataType(item.value);
+                        setIsFocus(false);
+                    }}
+                />
             </View>
 
-            {/* Other Filters */}
-            <View style={styles.filterContainer}>
+            {/* Items Per Page Dropdown */}
+            <View style={styles.inputContainer}>
+                <Text style={styles.label}>Items Per Page</Text>
                 <Dropdown
-                    style={styles.dropdown}
+                    style={[styles.dropdown, isFocus && { borderColor: '#6a11cb' }]}
+                    placeholderStyle={styles.placeholderStyle}
+                    selectedTextStyle={styles.selectedTextStyle}
                     data={[
                         { label: '10 items', value: 10 },
                         { label: '20 items', value: 20 },
@@ -255,224 +235,273 @@ const AccountStatement = () => {
                     ]}
                     labelField="label"
                     valueField="value"
-                    placeholder="Items per page"
                     value={pageSize}
-                    onChange={item => setPageSize(item.value)}
-                />
-                <Dropdown
-                    style={styles.dropdown}
-                    data={[
-                        { label: 'Live Data', value: 'live' },
-                        { label: 'Backup Data', value: 'backup' }
-                    ]}
-                    labelField="label"
-                    valueField="value"
-                    placeholder="Data Type"
-                    value={dataType}
-                    onChange={item => setDataType(item.value)}
+                    onFocus={() => setIsFocus(true)}
+                    onBlur={() => setIsFocus(false)}
+                    onChange={item => {
+                        setPageSize(item.value);
+                        setIsFocus(false);
+                    }}
                 />
             </View>
 
-            {isLoading && currentPage === 1 ? (
-                <View style={styles.loaderContainer}>
-                    <ActivityIndicator size="large" />
+            {/* From and To Date Pickers */}
+            <View style={styles.dateContainer}>
+                <View style={styles.datePicker}>
+                    <Text style={styles.label}>From Date</Text>
+                    <TouchableOpacity 
+                        style={styles.dateInput} 
+                        onPress={() => setShowStartDatePicker(true)}
+                    >
+                        <Text style={styles.dateText}>
+                            {startDate ? startDate.toDateString() : 'Select From Date'}
+                        </Text>
+                    </TouchableOpacity>
+                    {showStartDatePicker && (
+                        <DateTimePicker
+                            value={startDate || new Date()}
+                            mode="date"
+                            display="default"
+                            onChange={handleStartDateChange}
+                            maximumDate={endDate || new Date()}
+                        />
+                    )}
                 </View>
-            ) : (
-                <>
-                    <Text style={styles.summaryText}>
-                    {transactions.length} of {totalItems} transaction{totalItems !== 1 ? 's' : ''}
-                    </Text>
-                    
+
+                <View style={styles.datePicker}>
+                    <Text style={styles.label}>To Date</Text>
+                    <TouchableOpacity 
+                        style={styles.dateInput} 
+                        onPress={() => setShowEndDatePicker(true)}
+                        disabled={!startDate}
+                    >
+                        <Text style={styles.dateText}>
+                            {endDate ? endDate.toDateString() : 'Select To Date'}
+                        </Text>
+                    </TouchableOpacity>
+                    {showEndDatePicker && (
+                        <DateTimePicker
+                            value={endDate || new Date()}
+                            mode="date"
+                            display="default"
+                            onChange={handleEndDateChange}
+                            minimumDate={startDate}
+                            maximumDate={new Date()}
+                        />
+                    )}
+                </View>
+            </View>
+
+            {/* Clear Button */}
+            {(startDate || endDate) && (
+                <TouchableOpacity 
+                    style={styles.clearButton} 
+                    onPress={clearDateFilters}
+                >
+                    <Text style={styles.clearButtonText}>CLEAR DATES</Text>
+                </TouchableOpacity>
+            )}
+
+            {/* Get Statement Button */}
+            <TouchableOpacity 
+                style={styles.button} 
+                onPress={() => fetchData(1, pageSize, true)}
+                disabled={isLoading}
+            >
+                {isLoading ? (
+                    <ActivityIndicator color="#fff" />
+                ) : (
+                    <Text style={styles.buttonText}>GENERATE STATEMENT</Text>
+                )}
+            </TouchableOpacity>
+
+            {/* Summary Text */}
+            <Text style={styles.summaryText}>
+                Showing {transactions.length} of {totalItems} transaction{totalItems !== 1 ? 's' : ''}
+            </Text>
+
+            {/* Display Transactions */}
+            <ScrollView 
+                style={styles.scrollContainer}
+                contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator={false}
+            >
+                {transactions.length > 0 ? (
                     <FlatList
                         data={transactions}
-                        keyExtractor={item => item.transactionId || item.id}
                         renderItem={renderItem}
-                        contentContainerStyle={styles.listContent}
-                        onRefresh={handleRefresh}
-                        refreshing={isRefreshing}
+                        keyExtractor={(item, index) => index.toString()}
+                        scrollEnabled={false}
+                        contentContainerStyle={styles.listContainer}
                         onEndReached={handleLoadMore}
                         onEndReachedThreshold={0.1}
                         ListFooterComponent={renderFooter}
-                        ListEmptyComponent={
-                            <Text style={styles.emptyText}>
-                                No transactions found for the selected filters
-                            </Text>
-                        }
                     />
-                </>
-            )}
+                ) : (
+                    <View style={styles.noDataContainer}>
+                        <Text style={styles.noData}>No transactions found</Text>
+                    </View>
+                )}
+            </ScrollView>
         </View>
     );
 };
 
 const styles = StyleSheet.create({
-    container: {
+    mainContainer: {
         flex: 1,
-        backgroundColor: '#f9f9f9',
-        padding: 15,
+        backgroundColor: '#f8f9fa',
+        paddingTop: 15,
+        paddingHorizontal: 15,
     },
-    heading: {
-        fontSize: 22,
-        fontWeight: 'bold',
+    scrollContainer: {
+        flex: 1,
+    },
+    scrollContent: {
+        paddingBottom: 30,
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#f8f9fa',
+    },
+    inputContainer: {
         marginBottom: 15,
-        color: '#333',
-        textAlign: 'center',
     },
-    dateFilterContainer: {
+    label: {
+        fontSize: 14,
+        marginBottom: 5,
+        color: '#555',
+        fontWeight: '500',
+    },
+    dropdown: {
+        height: 45,
+        borderColor: '#ccc',
+        borderWidth: 1,
+        borderRadius: 6,
+        paddingHorizontal: 12,
+        backgroundColor: 'white',
+    },
+    placeholderStyle: {
+        fontSize: 14,
+        color: '#999',
+    },
+    selectedTextStyle: {
+        fontSize: 14,
+        color: '#333',
+    },
+    dateContainer: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'flex-end',
         marginBottom: 15,
     },
-    dateInputGroup: {
+    datePicker: {
         flex: 1,
-        flexDirection: 'row',
-    },
-    dateInputContainer: {
-        flex: 1,
-        marginRight: 10,
-    },
-    dateLabel: {
-        fontSize: 14,
-        color: '#666',
-        marginBottom: 5,
+        marginRight: 8,
     },
     dateInput: {
         height: 45,
         borderColor: '#ccc',
         borderWidth: 1,
-        borderRadius: 8,
-        paddingHorizontal: 10,
-        backgroundColor: '#fff',
+        borderRadius: 6,
+        paddingHorizontal: 12,
         justifyContent: 'center',
+        backgroundColor: 'white',
     },
-    dateInputText: {
+    dateText: {
         fontSize: 14,
         color: '#333',
     },
     clearButton: {
-        height: 45,
         backgroundColor: '#e0e0e0',
-        paddingHorizontal: 15,
-        borderRadius: 8,
-        justifyContent: 'center',
+        padding: 12,
         alignItems: 'center',
-        marginLeft: 10,
+        borderRadius: 6,
+        marginBottom: 15,
     },
     clearButtonText: {
         color: '#333',
         fontSize: 14,
-        fontWeight: '500',
+        fontWeight: 'bold',
     },
-    filterContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
+    button: {
+        backgroundColor: '#6a11cb',
+        padding: 12,
+        alignItems: 'center',
+        borderRadius: 6,
         marginBottom: 15,
     },
-    dropdown: {
-        height: 45,
-        width: width * 0.43,
-        borderColor: '#ccc',
-        borderWidth: 1,
-        borderRadius: 8,
-        paddingHorizontal: 10,
-        backgroundColor: '#fff',
+    buttonText: {
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: 'bold',
     },
-    card: {
-        backgroundColor: '#fff',
-        borderRadius: 10,
-        padding: 15,
-        marginBottom: 12,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 3,
-        elevation: 3,
-    },
-    rowBetween: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: 5,
-    },
-    label: {
+    summaryText: {
         fontSize: 14,
         color: '#666',
+        marginBottom: 15,
+        textAlign: 'center',
+    },
+    itemContainer: {
+        backgroundColor: 'white',
+        borderRadius: 10,
+        padding: 18,
+        marginBottom: 15,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
+        elevation: 2,
+    },
+    evenItem: {
+        backgroundColor: '#ffffff',
+        borderLeftWidth: 4,
+        borderLeftColor: '#4CAF50',
+    },
+    oddItem: {
+        backgroundColor: '#f9f9f9',
+        borderLeftWidth: 4,
+        borderLeftColor: '#2196F3',
+    },
+    row: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginBottom: 12,
+        alignItems: 'center',
     },
     value: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#333',
-        maxWidth: '60%',
+        fontSize: 15,
+        color: '#2c3e50',
+        flex: 2,
+        textAlign: 'right',
+        fontWeight: '500',
     },
-    loaderContainer: {
+    separator: {
+        height: 1,
+        backgroundColor: '#e0e0e0',
+        marginTop: 15,
+        marginBottom: 5,
+    },
+    noDataContainer: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
+        paddingVertical: 50,
+    },
+    noData: {
+        textAlign: 'center',
+        color: '#95a5a6',
+        fontSize: 17,
+        fontWeight: '500',
+    },
+    listContainer: {
+        paddingTop: 15,
     },
     footer: {
         padding: 10,
         justifyContent: 'center',
         alignItems: 'center',
-    },
-    summaryText: {
-        fontSize: 14,
-        color: '#666',
-        marginBottom: 10,
-        textAlign: 'center',
-    },
-    emptyText: {
-        textAlign: 'center',
-        marginTop: 20,
-        color: '#666',
-    },
-    listContent: {
-        paddingBottom: 20,
-    },
-    evenItem: {
-        backgroundColor: '#ffffff',
-        borderLeftWidth: 4,
-        borderLeftColor: '#4CAF50', // Green accent
-    },
-    oddItem: {
-        backgroundColor: '#f9f9f9',
-        borderLeftWidth: 4,
-        borderLeftColor: '#2196F3', // Blue accent
-    },
-    card: {
-        padding: 15,
-        marginBottom: 10,
-        borderRadius: 8,
-        elevation: 1,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 2,
-    },
-    label: {
-        fontWeight: '600',
-        color: '#555',
-        width: '30%',
-    },
-    dateValue: {
-        color: '#795548', // Brown
-        flex: 1,
-        fontSize: 13,
-    },
-    amountValue: {
-        fontWeight: 'bold',
-        flex: 1,
-        fontSize: 15,
-    },
-    balanceValue: {
-        color: '#607D8B', // Blue grey
-        fontWeight: '500',
-        flex: 1,
-    },
-    remarksValue: {
-        color: '#333',
-        flex: 1,
-        fontSize: 13,
-        fontStyle: 'italic',
     },
 });
 

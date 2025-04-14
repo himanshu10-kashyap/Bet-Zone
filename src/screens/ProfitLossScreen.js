@@ -1,5 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  TouchableOpacity, 
+  FlatList, 
+  ActivityIndicator, 
+  Alert, 
+  ScrollView
+} from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Dropdown } from 'react-native-element-dropdown';
 import { fetchProfitLoss } from '../services/authService.js';
@@ -8,7 +17,6 @@ import { useNavigation } from '@react-navigation/native';
 const ProfitLossScreen = () => {
   const navigation = useNavigation();
   const [dataSource, setDataSource] = useState('live');
-  // Initialize dates as null so no default date is shown
   const [fromDate, setFromDate] = useState(null);
   const [toDate, setToDate] = useState(null);
   const [showFromDate, setShowFromDate] = useState(false);
@@ -17,7 +25,6 @@ const ProfitLossScreen = () => {
   const [loading, setLoading] = useState(false);
   const [tableData, setTableData] = useState([]);
 
-  // Helper to format date; only called if date exists.
   const formatDateForAPI = (date) => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -29,7 +36,6 @@ const ProfitLossScreen = () => {
     try {
       setLoading(true);
       
-      // Build query params conditionally based on whether dates have been selected
       const queryParams = {
         dataType: dataSource
       };
@@ -63,7 +69,6 @@ const ProfitLossScreen = () => {
     }
   };
 
-  // Load data when component mounts or when data source changes
   useEffect(() => {
     handleGetStatement();
   }, [dataSource]);
@@ -72,7 +77,6 @@ const ProfitLossScreen = () => {
     const currentDate = selectedDate || fromDate;
     setShowFromDate(false);
     setFromDate(currentDate);
-    // Refresh data after date selection if needed
     handleGetStatement();
   };
 
@@ -80,24 +84,22 @@ const ProfitLossScreen = () => {
     const currentDate = selectedDate || toDate;
     setShowToDate(false);
     setToDate(currentDate);
-    // Refresh data after date selection if needed
     handleGetStatement();
   };
 
   const handleSportPress = (gameName, gameId) => {
     const normalized = gameName?.toLowerCase();
-    console.log('Clicked game:', gameName);
     if (normalized === 'lottery') {
       navigation.navigate('LotteryProfitAndLossScreen');
     } else if (normalized === 'colorgame') {
-        navigation.navigate('ColorgameProfitAndLossScreen', { 
-          gameId: gameId,
-          gameName: gameName 
-        });
-      } else {
-        Alert.alert('Navigation Error', `No screen available for ${gameName}`);
-      }
-    };
+      navigation.navigate('ColorgameProfitAndLossScreen', { 
+        gameId: gameId,
+        gameName: gameName 
+      });
+    } else {
+      Alert.alert('Navigation Error', `No screen available for ${gameName}`);
+    }
+  };
 
   const dataSourceOptions = [
     { label: 'Live Data', value: 'live' },
@@ -110,140 +112,141 @@ const ProfitLossScreen = () => {
     const isPositive = numericValue >= 0;
     
     return (
-      <Text style={[styles.cell, styles.amountCell, isPositive ? styles.positiveValue : styles.negativeValue]}>
+      <Text style={[styles.value, isPositive ? styles.positiveValue : styles.negativeValue]}>
         {numericValue.toFixed(2)}
       </Text>
     );
   };
 
+  const renderItem = ({ item, index }) => (
+    <View style={[
+      styles.itemContainer,
+      index % 2 === 0 ? styles.evenItem : styles.oddItem
+    ]}>
+      <View style={styles.row}>
+        <Text style={styles.label}>Sport Name:</Text>
+        <TouchableOpacity onPress={() => handleSportPress(item.sport, item.gameId)}>
+          <Text style={[styles.sportValue, styles.clickableText]}>{item.sport}</Text>
+        </TouchableOpacity>
+      </View>
+      <View style={styles.row}>
+        <Text style={styles.label}>Profit & Loss:</Text>
+        {renderProfitLossValue(item.profitLoss)}
+      </View>
+      <View style={styles.row}>
+        <Text style={styles.label}>Total P&L:</Text>
+        {renderProfitLossValue(item.profitLoss)}
+      </View>
+      <View style={styles.separator} />
+    </View>
+  );
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#6a11cb" />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.mainContainer}>
+      {/* Data Source Dropdown */}
+      <View style={styles.inputContainer}>
+        <Text style={styles.label}>Data Source</Text>
+        <Dropdown
+          style={[styles.dropdown, isFocus && { borderColor: '#6a11cb' }]}
+          placeholderStyle={styles.placeholderStyle}
+          selectedTextStyle={styles.selectedTextStyle}
+          data={dataSourceOptions}
+          labelField="label"
+          valueField="value"
+          value={dataSource}
+          onFocus={() => setIsFocus(true)}
+          onBlur={() => setIsFocus(false)}
+          onChange={item => {
+            setDataSource(item.value);
+            setIsFocus(false);
+          }}
+        />
+      </View>
+
+      {/* From and To Date Pickers */}
+      <View style={styles.dateContainer}>
+        <View style={styles.datePicker}>
+          <Text style={styles.label}>From Date</Text>
+          <TouchableOpacity 
+            style={styles.dateInput} 
+            onPress={() => setShowFromDate(true)}
+          >
+            <Text style={styles.dateText}>
+              {fromDate ? fromDate.toDateString() : 'Select From Date'}
+            </Text>
+          </TouchableOpacity>
+          {showFromDate && (
+            <DateTimePicker
+              value={fromDate || new Date()}
+              mode="date"
+              display="default"
+              onChange={onChangeFromDate}
+              maximumDate={new Date()}
+            />
+          )}
+        </View>
+
+        <View style={styles.datePicker}>
+          <Text style={styles.label}>To Date</Text>
+          <TouchableOpacity 
+            style={styles.dateInput} 
+            onPress={() => setShowToDate(true)}
+          >
+            <Text style={styles.dateText}>
+              {toDate ? toDate.toDateString() : 'Select To Date'}
+            </Text>
+          </TouchableOpacity>
+          {showToDate && (
+            <DateTimePicker
+              value={toDate || new Date()}
+              mode="date"
+              display="default"
+              onChange={onChangeToDate}
+              maximumDate={new Date()}
+              minimumDate={fromDate || undefined}
+            />
+          )}
+        </View>
+      </View>
+
+      {/* Get Statement Button */}
+      <TouchableOpacity 
+        style={styles.button} 
+        onPress={handleGetStatement}
+        disabled={loading}
+      >
+        {loading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.buttonText}>GENERATE STATEMENT</Text>
+        )}
+      </TouchableOpacity>
+
+      {/* Display Profit & Loss Cards */}
       <ScrollView 
         style={styles.scrollContainer}
-        contentContainerStyle={styles.contentContainer}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.header}>
-          <Text style={styles.headerText}>PROFIT & LOSS STATEMENT</Text>
-        </View>
-
-        {/* Data Source Dropdown */}
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Data Source</Text>
-          <Dropdown
-            style={[styles.dropdown, isFocus && { borderColor: '#007BFF' }]}
-            placeholderStyle={styles.placeholderStyle}
-            selectedTextStyle={styles.selectedTextStyle}
-            data={dataSourceOptions}
-            labelField="label"
-            valueField="value"
-            value={dataSource}
-            onFocus={() => setIsFocus(true)}
-            onBlur={() => setIsFocus(false)}
-            onChange={item => {
-              setDataSource(item.value);
-              setIsFocus(false);
-            }}
+        {tableData.length > 0 ? (
+          <FlatList
+            data={tableData}
+            renderItem={renderItem}
+            keyExtractor={(item, index) => index.toString()}
+            scrollEnabled={false}
+            contentContainerStyle={styles.listContainer}
           />
-        </View>
-
-        {/* From and To Date Pickers */}
-        <View style={styles.dateContainer}>
-          <View style={styles.datePicker}>
-            <Text style={styles.label}>From Date</Text>
-            <TouchableOpacity 
-              style={styles.dateInput} 
-              onPress={() => setShowFromDate(true)}
-            >
-              <Text style={styles.dateText}>
-                {fromDate ? fromDate.toDateString() : 'Select From Date'}
-              </Text>
-            </TouchableOpacity>
-            {showFromDate && (
-              <DateTimePicker
-                value={fromDate || new Date()}
-                mode="date"
-                display="default"
-                onChange={onChangeFromDate}
-                maximumDate={new Date()}
-              />
-            )}
-          </View>
-
-          <View style={styles.datePicker}>
-            <Text style={styles.label}>To Date</Text>
-            <TouchableOpacity 
-              style={styles.dateInput} 
-              onPress={() => setShowToDate(true)}
-            >
-              <Text style={styles.dateText}>
-                {toDate ? toDate.toDateString() : 'Select To Date'}
-              </Text>
-            </TouchableOpacity>
-            {showToDate && (
-              <DateTimePicker
-                value={toDate || new Date()}
-                mode="date"
-                display="default"
-                onChange={onChangeToDate}
-                maximumDate={new Date()}
-                minimumDate={fromDate || undefined}
-              />
-            )}
-          </View>
-        </View>
-
-        {/* Get Statement Button */}
-        <TouchableOpacity 
-          style={styles.button} 
-          onPress={handleGetStatement}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>GENERATE STATEMENT</Text>
-          )}
-        </TouchableOpacity>
-
-        {/* Display Profit & Loss Table */}
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#007BFF" />
-          </View>
         ) : (
-          <View style={styles.tableContainer}>
-            <View style={styles.tableHeader}>
-              <Text style={[styles.headerCell, styles.sportCell]}>Sport Name</Text>
-              <Text style={[styles.headerCell, styles.amountCell]}>P&L</Text>
-              <Text style={[styles.headerCell, styles.totalCell]}>Total P&L</Text>
-            </View>
-
-            {/* Table rows */}
-            {tableData.length > 0 ? (
-              tableData.map((row, index) => (
-                <View 
-                  key={index} 
-                  style={[
-                    styles.tableRow, 
-                    index % 2 === 0 ? styles.evenRow : styles.oddRow
-                  ]}
-                >
-                  <TouchableOpacity 
-                    style={styles.sportCell} 
-                    onPress={() => handleSportPress(row.sport, row.gameId)}
-                  >
-                    <Text style={[styles.cell, styles.clickableText]}>{row.sport}</Text>
-                  </TouchableOpacity>
-                  {renderProfitLossValue(row.profitLoss)}
-                  {renderProfitLossValue(row.profitLoss)}
-                </View>
-              ))
-            ) : (
-              <View style={styles.noDataContainer}>
-                <Text style={styles.noDataText}>No data available</Text>
-              </View>
-            )}
+          <View style={styles.noDataContainer}>
+            <Text style={styles.noData}>No data available</Text>
           </View>
         )}
       </ScrollView>
@@ -254,35 +257,107 @@ const ProfitLossScreen = () => {
 const styles = StyleSheet.create({
   mainContainer: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#f8f9fa',
+    paddingTop: 15,
+    paddingHorizontal: 15,
   },
   scrollContainer: {
     flex: 1,
   },
-  contentContainer: {
-    padding: 20,
+  scrollContent: {
     paddingBottom: 30,
   },
-  header: {
-    marginBottom: 20,
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    backgroundColor: '#f8f9fa',
   },
-  headerText: {
-    fontSize: 18,
+  listContainer: {
+    paddingTop: 15,
+  },
+  itemContainer: {
+    backgroundColor: 'white',
+    borderRadius: 10,
+    padding: 18,
+    marginBottom: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  evenItem: {
+    backgroundColor: '#ffffff',
+    borderLeftWidth: 4,
+    borderLeftColor: '#4CAF50',
+  },
+  oddItem: {
+    backgroundColor: '#f9f9f9',
+    borderLeftWidth: 4,
+    borderLeftColor: '#2196F3',
+  },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+    alignItems: 'center',
+  },
+  label: {
+    fontSize: 15,
+    color: '#7f8c8d',
+    fontWeight: '500',
+    flex: 1,
+  },
+  value: {
+    fontSize: 15,
+    color: '#2c3e50',
+    flex: 2,
+    textAlign: 'right',
+    fontWeight: '500',
+  },
+  sportValue: {
+    color: '#2E7D32',
+    flex: 2,
+    textAlign: 'right',
+    fontWeight: '500',
+  },
+  clickableText: {
+    color: '#6a11cb',
     fontWeight: 'bold',
-    color: '#007BFF',
+  },
+  positiveValue: {
+    color: '#28a745',
+  },
+  negativeValue: {
+    color: '#dc3545',
+  },
+  separator: {
+    height: 1,
+    backgroundColor: '#e0e0e0',
+    marginTop: 15,
+    marginBottom: 5,
+  },
+  noDataContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 50,
+  },
+  noData: {
+    textAlign: 'center',
+    color: '#95a5a6',
+    fontSize: 17,
+    fontWeight: '500',
   },
   inputContainer: {
     marginBottom: 15,
   },
   label: {
-    fontSize: 13,
+    fontSize: 14,
     marginBottom: 5,
-    fontWeight: '600',
     color: '#555',
+    fontWeight: '500',
   },
   dropdown: {
     height: 45,
@@ -293,11 +368,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
   },
   placeholderStyle: {
-    fontSize: 13,
+    fontSize: 14,
     color: '#999',
   },
   selectedTextStyle: {
-    fontSize: 13,
+    fontSize: 14,
     color: '#333',
   },
   dateContainer: {
@@ -319,99 +394,20 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
   },
   dateText: {
-    fontSize: 13,
+    fontSize: 14,
     color: '#333',
   },
   button: {
-    backgroundColor: '#007BFF',
+    backgroundColor: '#6a11cb',
     padding: 12,
     alignItems: 'center',
     borderRadius: 6,
-    marginVertical: 12,
+    marginBottom: 15,
   },
   buttonText: {
     color: '#fff',
     fontSize: 14,
     fontWeight: 'bold',
-  },
-  tableContainer: {
-    marginTop: 15,
-    borderRadius: 6,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    backgroundColor: 'white',
-  },
-  tableHeader: {
-    flexDirection: 'row',
-    backgroundColor: '#007BFF',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-  },
-  headerCell: {
-    color: 'white',
-    fontWeight: 'bold',
-    fontSize: 13,
-  },
-  sportCell: {
-    flex: 2,
-    justifyContent: 'center',
-  },
-  amountCell: {
-    flex: 1,
-    textAlign: 'center',
-    justifyContent: 'center',
-  },
-  totalCell: {
-    flex: 1.5,
-    textAlign: 'right',
-    justifyContent: 'center',
-  },
-  tableRow: {
-    flexDirection: 'row',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    minHeight: 40,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-    alignItems: 'center',
-  },
-  evenRow: {
-    backgroundColor: '#f9f9f9',
-  },
-  oddRow: {
-    backgroundColor: 'white',
-  },
-  cell: {
-    fontSize: 13,
-    color: '#333',
-  },
-  clickableText: {
-    color: '#007BFF',
-    textDecorationLine: 'underline',
-  },
-  positiveValue: {
-    color: '#28a745',
-    fontWeight: 'bold',
-  },
-  negativeValue: {
-    color: '#dc3545',
-    fontWeight: 'bold',
-  },
-  noDataContainer: {
-    padding: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  noDataText: {
-    fontSize: 14,
-    color: '#666',
-  },
-  loadingContainer: {
-    marginTop: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 100,
   },
 });
 

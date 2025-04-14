@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, FlatList, TouchableOpacity } from 'react-native';
 import RNPickerSelect from 'react-native-picker-select';
 import { fetchOpenBets, fetchOpenBetsMarketID } from '../services/authService';
 
@@ -52,23 +52,66 @@ export default function OpenBets() {
   const backData = betData.filter(item => item.type === 'back');
   const layData = betData.filter(item => item.type === 'lay');
 
-  const renderItem = (item, type) => (
-    <View style={styles.tableRow}>
-      <Text style={styles.cell}>{item.runnerName}</Text>
-      <Text style={styles.cell}>{item.rate}</Text>
-      <Text style={styles.cell}>{item.value}</Text>
-      <Text style={styles.cell}>
-        {item.value} ({type === 'back' ? `-${item.bidAmount}` : `-${item.bidAmount}`})
-      </Text>
+  const renderBackItem = ({ item, index }) => (
+    <View style={[
+      styles.itemContainer,
+      styles.backItem // Sky blue background for back bets
+    ]}>
+      <View style={styles.row}>
+        <Text style={styles.label}>Runner:</Text>
+        <Text style={styles.runnerValue}>{item.runnerName}</Text>
+      </View>
+      <View style={styles.row}>
+        <Text style={styles.label}>Odds:</Text>
+        <Text style={styles.oddsValue}>{item.rate}</Text>
+      </View>
+      <View style={styles.row}>
+        <Text style={styles.label}>Stake:</Text>
+        <Text style={styles.stakeValue}>{item.value}</Text>
+      </View>
+      <View style={styles.row}>
+        <Text style={styles.label}>Profit:</Text>
+        <Text style={styles.profitValue}>-{item.bidAmount}</Text>
+      </View>
+      <View style={styles.separator} />
+    </View>
+  );
+
+  const renderLayItem = ({ item, index }) => (
+    <View style={[
+      styles.itemContainer,
+      styles.layItem // Pink background for lay bets
+    ]}>
+      <View style={styles.row}>
+        <Text style={styles.label}>Runner:</Text>
+        <Text style={styles.runnerValue}>{item.runnerName}</Text>
+      </View>
+      <View style={styles.row}>
+        <Text style={styles.label}>Odds:</Text>
+        <Text style={styles.oddsValue}>{item.rate}</Text>
+      </View>
+      <View style={styles.row}>
+        <Text style={styles.label}>Stake:</Text>
+        <Text style={styles.stakeValue}>{item.value}</Text>
+      </View>
+      <View style={styles.row}>
+        <Text style={styles.label}>Liability:</Text>
+        <Text style={styles.liabilityValue}>-{item.bidAmount}</Text>
+      </View>
+      <View style={styles.separator} />
     </View>
   );
 
   return (
-    <ScrollView contentContainerStyle={styles.scrollContainer}>
-      <View style={styles.container}>
+    <View style={styles.mainContainer}>
+      <ScrollView 
+        style={styles.scrollContainer}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.dropdownWrapper}>
           {loadingMarkets ? (
-            <ActivityIndicator size="small" color="#00BCD4" />
+            <ActivityIndicator size="small" color="#007BFF" />
           ) : (
             <RNPickerSelect
               onValueChange={(value) => setSelectedMarket(value)}
@@ -82,129 +125,179 @@ export default function OpenBets() {
         </View>
 
         {loading ? (
-          <ActivityIndicator size="large" color="#00BCD4" />
+          <ActivityIndicator size="large" color="#007BFF" style={styles.loadingIndicator} />
         ) : selectedMarket ? (
           <>
-            <View style={styles.cardBlue}>
-              <View style={styles.tableHeader}>
-                <Text style={styles.headerCell}>Back</Text>
-                <Text style={styles.headerCell}>Odds</Text>
-                <Text style={styles.headerCell}>Stake</Text>
-                <Text style={styles.headerCell}>Profit</Text>
+            <Text style={styles.sectionTitle}>Back Bets</Text>
+            {backData.length > 0 ? (
+              <FlatList
+                data={backData}
+                renderItem={renderBackItem}
+                keyExtractor={(item, index) => `back-${index}`}
+                scrollEnabled={false}
+                contentContainerStyle={styles.listContainer}
+              />
+            ) : (
+              <View style={styles.noDataContainer}>
+                <Text style={styles.noData}>No back bets available</Text>
               </View>
-              {backData.length > 0 ? (
-                backData.map((item, index) => (
-                  <View key={`back-${index}`}>{renderItem(item, 'back')}</View>
-                ))
-              ) : (
-                <Text style={styles.noData}>No Back Bets</Text>
-              )}
-            </View>
+            )}
 
-            <View style={styles.cardPink}>
-              <View style={styles.tableHeader}>
-                <Text style={styles.headerCell}>Lay</Text>
-                <Text style={styles.headerCell}>Odds</Text>
-                <Text style={styles.headerCell}>Stake</Text>
-                <Text style={styles.headerCell}>Liability</Text>
+            <Text style={styles.sectionTitle}>Lay Bets</Text>
+            {layData.length > 0 ? (
+              <FlatList
+                data={layData}
+                renderItem={renderLayItem}
+                keyExtractor={(item, index) => `lay-${index}`}
+                scrollEnabled={false}
+                contentContainerStyle={styles.listContainer}
+              />
+            ) : (
+              <View style={styles.noDataContainer}>
+                <Text style={styles.noData}>No lay bets available</Text>
               </View>
-              {layData.length > 0 ? (
-                layData.map((item, index) => (
-                  <View key={`lay-${index}`}>{renderItem(item, 'lay')}</View>
-                ))
-              ) : (
-                <Text style={styles.noData}>No Lay Bets</Text>
-              )}
-            </View>
+            )}
           </>
-        ) : null}
-      </View>
-    </ScrollView>
+        ) : (
+          <View style={styles.noDataContainer}>
+            <Text style={styles.noData}>Please select a market to view bets</Text>
+          </View>
+        )}
+      </ScrollView>
+    </View>
   );
 }
 
-// ... keep the same styles and pickerSelectStyles from your original code ...
-
 const styles = StyleSheet.create({
-  scrollContainer: { paddingBottom: 30 },
-  container: { padding: 16, backgroundColor: '#fff', flexGrow: 1 },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    backgroundColor: '#00BCD4',
-    paddingVertical: 10,
-    color: '#fff',
-    borderRadius: 5,
-    marginBottom: 20,
+  mainContainer: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+  },
+  scrollContainer: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 15,
+    paddingTop: 15,
+    paddingBottom: 30,
   },
   dropdownWrapper: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    marginBottom: 20,
+    backgroundColor: 'white',
+    borderRadius: 10,
     paddingHorizontal: 10,
-  },
-  cardBlue: {
-    backgroundColor: '#d6eaf8',
-    padding: 10,
-    borderRadius: 8,
     marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    overflow: 'hidden',
+  },
+  loadingIndicator: {
+    marginVertical: 20,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#2c3e50',
+    marginBottom: 10,
+    marginTop: 15,
+  },
+  itemContainer: {
+    borderRadius: 10,
+    padding: 18,
+    marginBottom: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
     elevation: 2,
   },
-  cardPink: {
-    backgroundColor: '#f8d7da',
-    padding: 10,
-    borderRadius: 8,
-    marginBottom: 20,
-    elevation: 2,
+  backItem: {
+    backgroundColor: '#87CEEB', // Sky blue for back bets
+    borderLeftWidth: 4,
+    borderLeftColor: '#1565C0', // Darker blue border
   },
-  tableHeader: {
+  layItem: {
+    backgroundColor: '#FFC0CB', // Pink for lay bets
+    borderLeftWidth: 4,
+    borderLeftColor: '#C2185B', // Darker pink border
+  },
+  row: {
     flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#000',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+    alignItems: 'center',
+  },
+  label: {
+    fontSize: 15,
+    color: '#333', // Darker text for better contrast
+    fontWeight: '500',
+    flex: 1,
+  },
+  runnerValue: {
+    color: '#2c3e50',
+    flex: 2,
+    textAlign: 'right',
+    fontWeight: '600', // Slightly bolder
+  },
+  oddsValue: {
+    color: '#0D47A1', // Darker blue for better contrast
+    flex: 2,
+    textAlign: 'right',
+    fontWeight: '600',
+  },
+  stakeValue: {
+    color: '#006064', // Darker teal for better contrast
+    flex: 2,
+    textAlign: 'right',
+    fontWeight: '600',
+  },
+  profitValue: {
+    color: '#1B5E20', // Darker green for better contrast
+    flex: 2,
+    textAlign: 'right',
+    fontWeight: '600',
+  },
+  liabilityValue: {
+    color: '#B71C1C', // Darker red for better contrast
+    flex: 2,
+    textAlign: 'right',
+    fontWeight: '600',
+  },
+  separator: {
+    height: 1,
+    backgroundColor: 'rgba(0,0,0,0.1)',
+    marginTop: 15,
     marginBottom: 5,
   },
-  headerCell: {
-    flex: 1,
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-  tableRow: {
-    flexDirection: 'row',
-    marginVertical: 4,
-    backgroundColor: '#f2f2f2',
-    borderRadius: 4,
-    paddingVertical: 4,
-    paddingHorizontal: 2,
-  },
-  cell: {
-    flex: 1,
-    fontSize: 13,
+  noDataContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 20,
+    backgroundColor: 'white',
+    borderRadius: 10,
+    marginBottom: 15,
   },
   noData: {
     textAlign: 'center',
-    fontStyle: 'italic',
-    color: 'gray',
-    marginTop: 10,
+    color: '#95a5a6',
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  listContainer: {
+    paddingBottom: 5,
   },
 });
 
-// Custom styles for RNPickerSelect
 const pickerSelectStyles = StyleSheet.create({
   inputIOS: {
     fontSize: 16,
     paddingVertical: 12,
     paddingHorizontal: 10,
     color: 'black',
-    borderRadius: 4,
   },
   inputAndroid: {
     fontSize: 16,
     paddingHorizontal: 10,
     paddingVertical: 10,
     color: 'black',
-    borderRadius: 4,
   },
 });

@@ -90,7 +90,7 @@ const ChangePasswordScreen = () => {
                   <MaterialIcons
                     name={showOldPassword ? 'visibility-off' : 'visibility'}
                     size={24}
-                    color="#3B82F6"
+                    color="#6a11cb"
                   />
                 </TouchableOpacity>
               </View>
@@ -116,7 +116,7 @@ const ChangePasswordScreen = () => {
                   <MaterialIcons
                     name={showNewPassword ? 'visibility-off' : 'visibility'}
                     size={24}
-                    color="#3B82F6"
+                    color="#6a11cb"
                   />
                 </TouchableOpacity>
               </View>
@@ -142,7 +142,7 @@ const ChangePasswordScreen = () => {
                   <MaterialIcons
                     name={showConfirmPassword ? 'visibility-off' : 'visibility'}
                     size={24}
-                    color="#3B82F6"
+                    color="#6a11cb"
                   />
                 </TouchableOpacity>
               </View>
@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   button: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#6a11cb',
     padding: 18,
     borderRadius: 12,
     marginTop: 15,

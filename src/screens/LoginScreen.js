@@ -13,13 +13,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { loginUser } from '../services/authService';
 import { useNavigation } from '@react-navigation/native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons'; // Importing MaterialIcons
+import { useAppContext } from '../redux/context';
+import strings from '../utilities/stringConstant';
 
 export default function LoginScreen() {
   const [userName, setUserName] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false); // State for toggling password visibility
-
+  const { dispatch } = useAppContext();
   const navigation = useNavigation();
 
   const handleLogin = async () => {
@@ -27,13 +29,28 @@ export default function LoginScreen() {
       Alert.alert('Error', 'Please enter both username and password.');
       return;
     }
+    
     setLoading(true);
     try {
       const data = await loginUser({ userName, password });
-
+  
       if (data.data?.accessToken) {
+        // Save token to AsyncStorage
         await AsyncStorage.setItem('accessToken', data.data.accessToken);
-
+        
+        // Dispatch login action to store user data
+        dispatch({
+          type: strings.LOG_IN,
+          payload: {
+            accessToken: data.data.accessToken,
+            isLogin: true,
+            userName: data.data.userName,
+            userId: data.data.userId,
+            userType: data.data.userType,
+            // Include any other relevant user data
+          }
+        });
+  
         Alert.alert('Success', 'Login Successful!', [
           {
             text: 'OK',
@@ -49,6 +66,8 @@ export default function LoginScreen() {
         'Login Failed',
         error instanceof Error ? error.message : 'An unknown error occurred.'
       );
+    } finally {
+      setLoading(false);
     }
   };
 

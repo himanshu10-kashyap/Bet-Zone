@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Modal, ScrollView } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Dropdown } from 'react-native-element-dropdown';
-import { fetchGameBetHistory, fetchGamesList } from '../services/authService';
+import { fetchGameBetHistory, fetchGamesList, fetchLotteryBetHistory } from '../services/authService';
 
 const BetHistoryScreen = () => {
   // State for filters
@@ -21,6 +21,10 @@ const BetHistoryScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+
+  // State for Lottery specific
+  const [selectedLotteryTicket, setSelectedLotteryTicket] = useState(null);
+  const [showTicketModal, setShowTicketModal] = useState(false);
 
   // Dropdown data sources
   const dataSourceOptions = [
@@ -87,11 +91,26 @@ const BetHistoryScreen = () => {
         params.type = type;
       }
       
-      params.gameId = selectedGame === 'Lottery' ? 'Lottery' : selectedGame;
+      let response;
       
-      const response = await fetchGameBetHistory(params);
+      if (selectedGame === 'Lottery') {
+        // Use the Lottery-specific API
+        response = await fetchLotteryBetHistory({
+          ...params,
+          limit: 10
+        });
+      } else {
+        // Use the regular game API
+        params.gameId = selectedGame;
+        response = await fetchGameBetHistory(params);
+      }
       
-      setBetHistory(response.data);
+      if (page === 1) {
+        setBetHistory(response.data || []);
+      } else {
+        setBetHistory(prev => [...prev, ...(response.data || [])]);
+      }
+      
       setTotalPages(response.pagination?.totalPages || 1);
     } catch (error) {
       console.error('Error loading bet history:', error);
@@ -103,7 +122,7 @@ const BetHistoryScreen = () => {
 
   const handleRefresh = () => {
     setRefreshing(true);
-    setPage(1); // Reset to first page
+    setPage(1);
     loadBetHistory();
   };
 
@@ -113,46 +132,98 @@ const BetHistoryScreen = () => {
     }
   };
 
- const renderItem = ({ item, index }) => (
-  <View style={[
-    styles.itemContainer,
-    index % 2 === 0 ? styles.evenItem : styles.oddItem
-  ]}>
-    <View style={styles.row}>
-      <Text style={styles.label}>Sport Name:</Text>
-      <Text style={styles.value}>{item.gameName}</Text>
-    </View>
-    <View style={styles.row}>
-      <Text style={styles.label}>Event:</Text>
-      <Text style={styles.value}>{item.marketName}</Text>
-    </View>
-    <View style={styles.row}>
-      <Text style={styles.label}>Selection:</Text>
-      <Text style={styles.value}>{item.runnerName}</Text>
-    </View>
-    <View style={styles.row}>
-      <Text style={styles.label}>Odds Req:</Text>
-      <Text style={styles.oddsValue}>{item.rate}</Text>
-    </View>
-    <View style={styles.row}>
-      <Text style={styles.label}>Stack:</Text>
-      <Text style={styles.stackValue}>{item.value}</Text>
-    </View>
-    <View style={styles.row}>
-      <Text style={styles.label}>Type:</Text>
-      <Text style={[
-        styles.typeValue, 
-        item.type === 'back' ? styles.back : styles.lay
-      ]}>
-        {item.type.toUpperCase()}
-      </Text>
-    </View>
-    <View style={styles.row}>
-      <Text style={styles.label}>Date:</Text>
-      <Text style={styles.dateValue}>{new Date(item.date).toLocaleString()}</Text>
-    </View>
-  </View>
-);
+  const formatDateTime = (dateTimeString) => {
+    if (!dateTimeString) return 'N/A';
+    const date = new Date(dateTimeString);
+    return date.toLocaleString();
+  };
+
+  const renderItem = ({ item, index }) => {
+    if (selectedGame === 'Lottery') {
+      return (
+        <View style={[
+          styles.itemContainer,
+          index % 2 === 0 ? styles.evenItem : styles.oddItem
+        ]}>
+          <View style={styles.row}>
+            <Text style={styles.label}>Sport Name:</Text>
+            <Text style={styles.sportValue}>{item.sportName || 'Lottery'}</Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.label}>Tickets:</Text>
+            <TouchableOpacity 
+              style={styles.ticketsContainer} 
+              onPress={() => {
+                setSelectedLotteryTicket(item);
+                setShowTicketModal(true);
+              }}
+            >
+              <Text style={styles.ticketCount}>{item.tickets?.length || 0} tickets (tap to view)</Text>
+              {item.tickets?.slice(0, 2).map((ticket, idx) => (
+                <Text key={idx} style={styles.ticketValue}>{ticket}</Text>
+              ))}
+              {item.tickets?.length > 2 && (
+                <Text style={styles.moreTickets}>+{item.tickets.length - 2} more</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.label}>Sem:</Text>
+            <Text style={styles.semValue}>{item.sem}</Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.label}>Amount:</Text>
+            <Text style={styles.amountValue}>{item.amount}</Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.label}>Date:</Text>
+            <Text style={styles.timeValue}>{formatDateTime(item.date)}</Text>
+          </View>
+        </View>
+      );
+    } else {
+      return (
+        <View style={[
+          styles.itemContainer,
+          index % 2 === 0 ? styles.evenItem : styles.oddItem
+        ]}>
+          <View style={styles.row}>
+            <Text style={styles.label}>Sport Name:</Text>
+            <Text style={styles.sportValue}>{item.gameName}</Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.label}>Event:</Text>
+            <Text style={styles.eventValue}>{item.marketName}</Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.label}>Selection:</Text>
+            <Text style={styles.marketValue}>{item.runnerName}</Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.label}>Odds Req:</Text>
+            <Text style={styles.oddsValue}>{item.rate}</Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.label}>Stack:</Text>
+            <Text style={styles.stackValue}>{item.value}</Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.label}>Type:</Text>
+            <Text style={[
+              styles.typeValue, 
+              item.type === 'back' ? styles.back : styles.lay
+            ]}>
+              {item.type}
+            </Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.label}>Date:</Text>
+            <Text style={styles.timeValue}>{formatDateTime(item.date)}</Text>
+          </View>
+        </View>
+      );
+    }
+  };
 
   const renderDropdownItem = (item) => {
     return (
@@ -163,12 +234,11 @@ const BetHistoryScreen = () => {
   };
 
   return (
-    <View style={styles.container}>
-      {/* Filter Section */}
+    <View style={styles.mainContainer}>
+      {/* Filter Section (unchanged) */}
       <View style={styles.filterContainer}>
         <Text style={styles.filterTitle}>Filters</Text>
         
-        {/* Data Source Dropdown */}
         <View style={styles.dropdownContainer}>
           <Text style={styles.dropdownLabel}>Data Source:</Text>
           <Dropdown
@@ -189,7 +259,6 @@ const BetHistoryScreen = () => {
           />
         </View>
 
-        {/* Game Dropdown */}
         <View style={styles.dropdownContainer}>
           <Text style={styles.dropdownLabel}>Select Game:</Text>
           <Dropdown
@@ -205,12 +274,14 @@ const BetHistoryScreen = () => {
             valueField="value"
             placeholder="Select game"
             value={selectedGame}
-            onChange={item => setSelectedGame(item.value)}
+            onChange={item => {
+              setSelectedGame(item.value);
+              setPage(1);
+            }}
             renderItem={renderDropdownItem}
           />
         </View>
 
-        {/* Type Dropdown */}
         <View style={styles.dropdownContainer}>
           <Text style={styles.dropdownLabel}>Type:</Text>
           <Dropdown
@@ -226,12 +297,14 @@ const BetHistoryScreen = () => {
             valueField="value"
             placeholder="Select type"
             value={type}
-            onChange={item => setType(item.value)}
+            onChange={item => {
+              setType(item.value);
+              setPage(1);
+            }}
             renderItem={renderDropdownItem}
           />
         </View>
 
-        {/* Date Range */}
         <View style={styles.dateContainer}>
           <Text style={styles.dropdownLabel}>Date Range:</Text>
           <View style={styles.dateRow}>
@@ -259,6 +332,7 @@ const BetHistoryScreen = () => {
             setShowFromDatePicker(false);
             if (selectedDate) {
               setFromDate(selectedDate);
+              setPage(1);
             }
           }}
         />
@@ -272,6 +346,7 @@ const BetHistoryScreen = () => {
             setShowToDatePicker(false);
             if (selectedDate) {
               setToDate(selectedDate);
+              setPage(1);
             }
           }}
         />
@@ -287,7 +362,7 @@ const BetHistoryScreen = () => {
           keyExtractor={(item, index) => index.toString()}
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
-            <Text style={styles.emptyText}>No bet history found</Text>
+            <Text style={styles.noData}>No bet history found</Text>
           }
           refreshing={refreshing}
           onRefresh={handleRefresh}
@@ -300,16 +375,45 @@ const BetHistoryScreen = () => {
           }
         />
       )}
+
+      {/* Lottery Ticket Modal */}
+      <Modal
+        visible={showTicketModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowTicketModal(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Tickets Details</Text>
+              <TouchableOpacity 
+                style={styles.closeButton}
+                onPress={() => setShowTicketModal(false)}
+              >
+                <Text style={styles.closeButtonText}>×</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalScroll}>
+              {selectedLotteryTicket?.tickets?.map((ticket, index) => (
+                <View key={index} style={styles.modalTicketItem}>
+                  <Text style={styles.modalTicketText}>{ticket}</Text>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  mainContainer: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
-    padding: 10,
+    backgroundColor: '#f8f9fa',
   },
+  // Filter styles (unchanged from your original)
   filterContainer: {
     backgroundColor: 'white',
     padding: 15,
@@ -380,99 +484,210 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ddd',
   },
+  // List styles matching MarketDetailsScreen
+  listContent: {
+    paddingHorizontal: 15,
+    paddingTop: 15,
+  },
   itemContainer: {
     backgroundColor: 'white',
-    padding: 15,
-    marginBottom: 10,
-    borderRadius: 8,
-    elevation: 1,
+    borderRadius: 10,
+    padding: 18,
+    marginBottom: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
   },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 5,
+    marginBottom: 12,
+    alignItems: 'center',
   },
   label: {
-    fontWeight: 'bold',
-    color: '#555',
+    fontSize: 15,
+    color: '#7f8c8d',
+    fontWeight: '500',
+    flex: 1,
   },
-  value: {
-    color: '#333',
+  ticketsContainer: {
+    flex: 2,
   },
-  back: {
-    color: 'green',
-    fontWeight: 'bold',
+  ticketCount: {
+    fontSize: 14,
+    color: '#3498db',
+    marginBottom: 4,
+    textAlign: 'right',
+    fontWeight: '500',
   },
-  lay: {
-    color: 'red',
-    fontWeight: 'bold',
+  ticketValue: {
+    fontSize: 15,
+    color: '#2c3e50',
+    marginBottom: 4,
+    textAlign: 'right',
+    fontWeight: '500',
+    backgroundColor: '#ECEFF1',
+    padding: 4,
+    borderRadius: 4,
   },
-  listContent: {
-    paddingBottom: 20,
+  moreTickets: {
+    fontSize: 14,
+    color: '#95a5a6',
+    textAlign: 'right',
+    fontStyle: 'italic',
+  },
+  noData: {
+    textAlign: 'center',
+    color: '#95a5a6',
+    fontSize: 17,
+    fontWeight: '500',
+    paddingVertical: 50,
   },
   loader: {
     marginTop: 20,
   },
-  emptyText: {
-    textAlign: 'center',
-    marginTop: 20,
-    color: '#666',
-  },
   evenItem: {
     backgroundColor: '#ffffff',
     borderLeftWidth: 4,
-    borderLeftColor: '#4CAF50', // Green accent
+    borderLeftColor: '#4CAF50',
   },
   oddItem: {
     backgroundColor: '#f9f9f9',
     borderLeftWidth: 4,
-    borderLeftColor: '#2196F3', // Blue accent
+    borderLeftColor: '#2196F3',
   },
-  itemContainer: {
-    padding: 15,
-    marginBottom: 10,
-    borderRadius: 6,
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+  // Value styles with colors matching MarketDetailsScreen
+  sportValue: {
+    color: '#2E7D32',
+    flex: 2,
+    textAlign: 'right',
+    fontWeight: '500',
   },
-  label: {
-    fontWeight: '600',
-    color: '#555',
-    width: '30%',
+  eventValue: {
+    color: '#1565C0',
+    flex: 2,
+    textAlign: 'right',
+    fontWeight: '500',
   },
-  value: {
-    color: '#333',
-    flex: 1,
+  marketValue: {
+    color: '#6A1B9A',
+    flex: 2,
+    textAlign: 'right',
+    fontWeight: '500',
+  },
+  semValue: {
+    color: '#D84315',
+    flex: 2,
+    textAlign: 'right',
     fontWeight: '500',
   },
   oddsValue: {
-    color: '#FF5722', // Deep orange
+    color: '#FF5722',
     fontWeight: 'bold',
-    flex: 1,
+    flex: 2,
+    textAlign: 'right',
   },
   stackValue: {
-    color: '#607D8B', // Blue grey
+    color: '#607D8B',
     fontWeight: 'bold',
-    flex: 1,
+    flex: 2,
+    textAlign: 'right',
   },
   typeValue: {
     fontWeight: 'bold',
-    flex: 1,
+    flex: 2,
     textTransform: 'uppercase',
+    textAlign: 'right',
   },
-  dateValue: {
-    color: '#795548', // Brown
-    flex: 1,
-    fontSize: 12,
+  amountValue: {
+    color: '#C62828',
+    flex: 2,
+    textAlign: 'right',
+    fontWeight: 'bold',
+  },
+  timeValue: {
+    color: '#5D4037',
+    flex: 2,
+    textAlign: 'right',
+    fontWeight: '400',
+    fontSize: 14,
   },
   back: {
-    color: '#2E7D32', // Darker green
+    color: '#2E7D32',
   },
   lay: {
-    color: '#C62828', // Darker red
+    color: '#C62828',
+  },
+  // Modal styles matching MarketDetailsScreen
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    marginHorizontal: 20,
+    borderRadius: 10,
+    maxHeight: '70%',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 5,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+  },
+  closeButton: {
+    padding: 5,
+  },
+  closeButtonText: {
+    fontSize: 24,
+    color: '#7f8c8d',
+  },
+  modalInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  modalLabel: {
+    fontSize: 15,
+    color: '#7f8c8d',
+    fontWeight: '500',
+  },
+  modalValue: {
+    fontSize: 15,
+    color: '#2c3e50',
+    fontWeight: '500',
+  },
+  modalScroll: {
+    paddingHorizontal: 15,
+  },
+  modalTicketItem: {
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+    backgroundColor: '#FAFAFA',
+  },
+  modalTicketText: {
+    fontSize: 15,
+    color: '#34495e',
   },
 });
 
