@@ -32,6 +32,6 @@ export const getUserInitialState = (body = {}) => ({
     announcement: [],
     appDrawer: [],
     isLoading: false,
-    placeBidding: [],
+    placeBidding : getUserPlaceBidding()
   });
   

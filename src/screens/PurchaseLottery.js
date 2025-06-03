@@ -1,16 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
   ActivityIndicator,
   Alert,
   Dimensions,
   FlatList
 } from 'react-native';
-import { searchTicket } from '../services/authService';
+import { purchaseLottery } from '../services/authService';
+import { useAppContext } from '../redux/context.js';
 
 const { width } = Dimensions.get('window');
 
@@ -29,28 +29,34 @@ const PurchaseLottery = ({ route, navigation }) => {
   } = route.params;
 
   const [loading, setLoading] = useState(false);
+  const { updateWalletAndExposure } = useAppContext();
 
   const handlePurchase = async () => {
     try {
+      if (!marketId || !generateId || !price) {
+        throw new Error('Required purchase data is missing');
+      }
+
       setLoading(true);
       
-      const purchaseData = {
-        marketId,
+      const response = await purchaseLottery(marketId, {
         generateId,
-        tickets,
-        sem,
-        price,
-        group: selectedGroup,
-        series: selectedSeries,
-        number: selectedNumber
-      };
-
-      const response = await searchTicket(purchaseData);
+        lotteryPrice: price
+      });
 
       if (response.success) {
         Alert.alert(
           'Success', 
           `Successfully purchased ${tickets.length} ticket(s)`,
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                updateWalletAndExposure();
+                navigation.goBack();
+              }
+            }
+          ]
         );
       } else {
         throw new Error(response.message || 'Purchase failed');
@@ -63,11 +69,8 @@ const PurchaseLottery = ({ route, navigation }) => {
     }
   };
 
-  const totalAmount = tickets.length * price;
-
   // Function to split ticket number into parts (like in your image)
   const renderTicketNumber = (ticketNumber) => {
-    // Example: "04 D 00004" or "04 H 041"
     const parts = ticketNumber.split(' ');
     return (
       <View style={styles.ticketNumberContainer}>
@@ -99,12 +102,12 @@ const PurchaseLottery = ({ route, navigation }) => {
           <Text style={styles.summaryValue}>{marketName}</Text>
         </View>
         <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Total Tickets:</Text>
-          <Text style={styles.summaryValue}>{tickets.length}</Text>
+          <Text style={styles.summaryLabel}>Sem:</Text>
+          <Text style={styles.summaryValue}>{sem}</Text>
         </View>
         <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Total Amount:</Text>
-          <Text style={styles.summaryValue}>₹{totalAmount}</Text>
+          <Text style={styles.summaryLabel}>Price:</Text>
+          <Text style={styles.summaryValue}>₹{price}</Text>
         </View>
       </View>
 
@@ -138,7 +141,7 @@ const PurchaseLottery = ({ route, navigation }) => {
             <ActivityIndicator color="white" />
           ) : (
             <Text style={styles.purchaseButtonText}>
-              PURCHASE ALL TICKETS (₹{totalAmount})
+              PURCHASE ALL TICKETS
             </Text>
           )}
         </TouchableOpacity>
@@ -146,6 +149,7 @@ const PurchaseLottery = ({ route, navigation }) => {
     </View>
   );
 };
+
 
 const styles = StyleSheet.create({
     container: {

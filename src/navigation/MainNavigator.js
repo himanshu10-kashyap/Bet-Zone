@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { createDrawerNavigator, DrawerItemList } from '@react-navigation/drawer';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Icon from 'react-native-vector-icons/Ionicons';
 import HomeScreen from '../screens/HomeScreen';
 import OpenBets from '../screens/OpenBets';
-import { View, Text, ScrollView } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import AccountStatement from '../screens/AccountStatement';
 import ChangePassword from '../screens/ChangePassword';
 import LotteryPurchaseScreen from '../screens/LotteryPurchaseScreen';
@@ -17,7 +17,6 @@ import MarketDetailsScreenCg from '../screens/MarketDetailsScreenCg';
 import RunnerDetailsScreen from '../screens/RunnerDetailsScreen';
 import BetHistoryScreen from '../screens/BetHistory';
 import UserActivityLogScreen from '../screens/UserActivityLogScreen';
-import LinearGradient from 'react-native-linear-gradient';
 import DrawerHeader from '../components/DrawerHeader';
 import LotteryResultsScreen from '../screens/LotteryResultsScreen';
 import LogoutComponent from '../components/LogoutComponent';
@@ -26,6 +25,7 @@ import ColorGameMarketsScreen from '../screens/ColorGameMarketsScreen';
 import ColorGamePlayScreen from '../screens/ColorGamePlayScreen';
 import LotteryMarketDetailScreen from '../screens/LotteryMarketDetailScreen';
 import PurchaseLottery from '../screens/PurchaseLottery';
+import { useAppContext } from '../redux/context';
 
 const Drawer = createDrawerNavigator();
 const Tab = createBottomTabNavigator();
@@ -74,6 +74,20 @@ function BottomTabs({ route }) {
 }
 
 function DrawerNavigator() {
+    const { store, refreshWallet } = useAppContext();
+    const [refreshing, setRefreshing] = useState(false);
+
+    const handleRefresh = async () => {
+        try {
+            setRefreshing(true);
+            await refreshWallet();
+        } catch (error) {
+            console.error("Refresh failed:", error);
+        } finally {
+            setRefreshing(false);
+        }
+    };
+
     return (
         <Drawer.Navigator
             screenOptions={{
@@ -91,31 +105,63 @@ function DrawerNavigator() {
                     width: 300,
                 },
                 headerRight: () => (
-                    <View style={{
-                        flexDirection: 'column',
-                        alignItems: 'flex-end',
-                        marginRight: 15,
-                        paddingVertical: 5
-                    }}>
-                        {/* Wallet Balance */}
+                    <TouchableOpacity
+                        onPress={handleRefresh}
+                        disabled={refreshing}
+                        style={{
+                            backgroundColor: 'rgba(255,255,255,0.15)',
+                            borderRadius: 8,
+                            paddingHorizontal: 12,
+                            paddingVertical: 8,
+                            marginRight: 15,
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            elevation: 2,
+                            shadowColor: '#000',
+                            shadowOffset: { width: 0, height: 1 },
+                            shadowOpacity: 0.2,
+                            shadowRadius: 2,
+                        }}
+                    >
+                        {/* Wallet Info Only - Entire card is clickable */}
                         <View style={{
                             flexDirection: 'row',
                             alignItems: 'center',
-                            marginBottom: 4
                         }}>
-                            <Icon name="wallet-outline" size={16} color="#fff" style={{ marginRight: 5 }} />
-                            <Text style={{ color: '#fff', fontSize: 14 }}>₹5,000</Text>
-                        </View>
+                            {/* Wallet Balance */}
+                            <View style={{
+                                marginRight: 12,
+                                alignItems: 'center'
+                            }}>
+                                <View style={{
+                                    flexDirection: 'row',
+                                    alignItems: 'center',
+                                    marginBottom: 2
+                                }}>
+                                    <Icon name="wallet-outline" size={14} color="#fff" style={{ marginRight: 4 }} />
+                                    <Text style={{ color: '#fff', fontSize: 12, fontWeight: '500' }}>
+                                        ₹{refreshing ? '...' : (store.user?.wallet?.balance || 0)}
+                                    </Text>
+                                </View>
 
-                        {/* Exposure */}
-                        <View style={{
-                            flexDirection: 'row',
-                            alignItems: 'center'
-                        }}>
-                            <Icon name="flash-outline" size={16} color="#fff" style={{ marginRight: 5 }} />
-                            <Text style={{ color: '#fff', fontSize: 14 }}>₹1,200</Text>
+                                {/* Exposure */}
+                                <View style={{
+                                    flexDirection: 'row',
+                                    alignItems: 'center'
+                                }}>
+                                    <Icon name="flash-outline" size={14} color="#fff" style={{ marginRight: 4 }} />
+                                    <Text style={{ color: '#fff', fontSize: 12, fontWeight: '500' }}>
+                                        ₹{refreshing ? '...' : (store.user?.wallet?.exposure || 0)}
+                                    </Text>
+                                </View>
+                            </View>
+
+                            {/* Refresh Indicator (only shows when refreshing) */}
+                            {refreshing && (
+                                <ActivityIndicator size="small" color="#fff" />
+                            )}
                         </View>
-                    </View>
+                    </TouchableOpacity>
                 ),
                 drawerActiveBackgroundColor: '#3F51B5',
                 drawerActiveTintColor: '#fff',
@@ -169,7 +215,7 @@ function DrawerNavigator() {
                             textAlign: 'center',
                             fontSize: 12
                         }}>
-                            Version 1.2.0 • © 2023 BetMaster
+                            Version 1.2.0 • © 2025 Bet Master
                         </Text>
                     </View>
                 </View>
@@ -270,6 +316,20 @@ function DrawerNavigator() {
 
 
 export default function MainNavigator() {
+    const { store, refreshWallet } = useAppContext();
+    const [refreshing, setRefreshing] = useState(false);
+
+    const handleRefresh = async () => {
+        try {
+            setRefreshing(true);
+            await refreshWallet();
+        } catch (error) {
+            console.error("Refresh failed:", error);
+        } finally {
+            setRefreshing(false);
+        }
+    };
+
     return (
         <Stack.Navigator screenOptions={{
             headerShown: false, headerStyle: {
@@ -285,31 +345,63 @@ export default function MainNavigator() {
                 width: 300,
             },
             headerRight: () => (
-                <View style={{
-                    flexDirection: 'column',
-                    alignItems: 'flex-end',
-                    marginRight: 15,
-                    paddingVertical: 5
-                }}>
-                    {/* Wallet Balance */}
+                <TouchableOpacity
+                    onPress={handleRefresh}
+                    disabled={refreshing}
+                    style={{
+                        backgroundColor: 'rgba(255,255,255,0.15)',
+                        borderRadius: 8,
+                        paddingHorizontal: 12,
+                        paddingVertical: 8,
+                        marginRight: 15,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        elevation: 2,
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 1 },
+                        shadowOpacity: 0.2,
+                        shadowRadius: 2,
+                    }}
+                >
+                    {/* Wallet Info Only - Entire card is clickable */}
                     <View style={{
                         flexDirection: 'row',
                         alignItems: 'center',
-                        marginBottom: 4
                     }}>
-                        <Icon name="wallet-outline" size={16} color="#fff" style={{ marginRight: 5 }} />
-                        <Text style={{ color: '#fff', fontSize: 14 }}>₹5,000</Text>
-                    </View>
+                        {/* Wallet Balance */}
+                        <View style={{
+                            marginRight: 12,
+                            alignItems: 'center'
+                        }}>
+                            <View style={{
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                marginBottom: 2
+                            }}>
+                                <Icon name="wallet-outline" size={14} color="#fff" style={{ marginRight: 4 }} />
+                                <Text style={{ color: '#fff', fontSize: 12, fontWeight: '500' }}>
+                                    ₹{refreshing ? '...' : (store.user?.wallet?.balance || 0)}
+                                </Text>
+                            </View>
 
-                    {/* Exposure */}
-                    <View style={{
-                        flexDirection: 'row',
-                        alignItems: 'center'
-                    }}>
-                        <Icon name="flash-outline" size={16} color="#fff" style={{ marginRight: 5 }} />
-                        <Text style={{ color: '#fff', fontSize: 14 }}>₹1,200</Text>
+                            {/* Exposure */}
+                            <View style={{
+                                flexDirection: 'row',
+                                alignItems: 'center'
+                            }}>
+                                <Icon name="flash-outline" size={14} color="#fff" style={{ marginRight: 4 }} />
+                                <Text style={{ color: '#fff', fontSize: 12, fontWeight: '500' }}>
+                                    ₹{refreshing ? '...' : (store.user?.wallet?.exposure || 0)}
+                                </Text>
+                            </View>
+                        </View>
+
+                        {/* Refresh Indicator (only shows when refreshing) */}
+                        {refreshing && (
+                            <ActivityIndicator size="small" color="#fff" />
+                        )}
                     </View>
-                </View>
+                </TouchableOpacity>
             ),
 
 
@@ -355,6 +447,11 @@ export default function MainNavigator() {
                 component={PurchaseLottery}
                 options={{ headerShown: true, title: 'Lottery Purchase' }}
             />
+            {/* <Stack.Screen
+                name="ResetPasswordScreen"
+                component={ResetPasswordScreen}
+                options={{ headerShown: true, title: 'Reset Password' }}
+            /> */}
         </Stack.Navigator>
     );
 }

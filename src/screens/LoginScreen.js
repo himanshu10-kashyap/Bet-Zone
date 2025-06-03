@@ -29,7 +29,7 @@ export default function LoginScreen() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const { dispatch } = useAppContext();
   const navigation = useNavigation();
-  
+
   const [scaleValue] = useState(new Animated.Value(1));
   const [fadeValue] = useState(new Animated.Value(0));
   const [modalOpacity] = useState(new Animated.Value(0));
@@ -82,17 +82,26 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     if (!userName || !password) {
-      // You can add a custom error message here if needed
+      console.warn('Username and password are required');
       return;
     }
-    
+
     setLoading(true);
+
     try {
       const data = await loginUser({ userName, password });
-  
+      if (data.data?.isReset) {
+        setLoading(false);
+
+        navigation.replace('ResetPasswordScreen', {
+          userName: userName,
+          oldPassword: password
+        });
+        return;
+      }
       if (data.data?.accessToken) {
         await AsyncStorage.setItem('accessToken', data.data.accessToken);
-        
+
         dispatch({
           type: strings.LOG_IN,
           payload: {
@@ -103,11 +112,13 @@ export default function LoginScreen() {
             userType: data.data.userType,
           }
         });
-        
+
         showCustomAlert();
+      } else {
+        console.warn('Missing access token in successful login');
       }
     } catch (error) {
-      // Handle error (you can add custom error display)
+      console.error('Login error:', error);
     } finally {
       setLoading(false);
     }
@@ -116,7 +127,7 @@ export default function LoginScreen() {
   return (
     <View style={styles.container}>
       <StatusBar backgroundColor="#1E1E6D" barStyle="light-content" />
-      
+
       <Animated.View style={[styles.content, { opacity: fadeValue }]}>
         <View style={styles.header}>
           <Text style={styles.heading}>Welcome</Text>
@@ -124,11 +135,11 @@ export default function LoginScreen() {
         </View>
 
         <View style={styles.inputContainer}>
-          <MaterialIcons 
-            name="person-outline" 
-            size={22} 
-            color="#FFD700" 
-            style={styles.inputIcon} 
+          <MaterialIcons
+            name="person-outline"
+            size={22}
+            color="#FFD700"
+            style={styles.inputIcon}
           />
           <TextInput
             style={styles.input}
@@ -141,11 +152,11 @@ export default function LoginScreen() {
         </View>
 
         <View style={styles.inputContainer}>
-          <MaterialIcons 
-            name="lock-outline" 
-            size={22} 
-            color="#FFD700" 
-            style={styles.inputIcon} 
+          <MaterialIcons
+            name="lock-outline"
+            size={22}
+            color="#FFD700"
+            style={styles.inputIcon}
           />
           <TextInput
             style={styles.input}
@@ -171,8 +182,8 @@ export default function LoginScreen() {
           <ActivityIndicator size="large" color="#FFD700" style={styles.loader} />
         ) : (
           <Animated.View style={{ transform: [{ scale: scaleValue }] }}>
-            <TouchableOpacity 
-              style={styles.button} 
+            <TouchableOpacity
+              style={styles.button}
               onPress={handleLogin}
               onPressIn={handlePressIn}
               onPressOut={handlePressOut}
@@ -183,7 +194,7 @@ export default function LoginScreen() {
           </Animated.View>
         )}
       </Animated.View>
-      
+
       {/* Custom Success Modal */}
       <Modal
         transparent={true}
@@ -201,7 +212,7 @@ export default function LoginScreen() {
           </View>
         </Animated.View>
       </Modal>
-      
+
       {/* Decorative elements */}
       <View style={styles.cornerAccentTop} />
       <View style={styles.cornerAccentBottom} />

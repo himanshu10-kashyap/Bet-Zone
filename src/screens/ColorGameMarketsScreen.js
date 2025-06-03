@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { fetchAllGameData } from '../services/authService.js';
+import strings from '../utilities/stringConstant.js';
+import { useAppContext } from '../redux/context.js';
 
 const ColorGameMarketsScreen = () => {
     const navigation = useNavigation();
@@ -9,12 +11,17 @@ const ColorGameMarketsScreen = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [refreshing, setRefreshing] = useState(false);
+    const { store, dispatch } = useAppContext();
 
     const fetchData = async () => {
         try {
             setLoading(true);
             const response = await fetchAllGameData();
-            
+            console.log('responseMarketeeee', response);
+            dispatch({
+                type: 'UPDATE_PLACE_BIDDING',
+                payload: { gameId: response.data[0].gameId }
+            });
             if (response.success && response.data) {
                 // Filter to only show COLORGAME markets
                 const colorGame = response.data.find(game => game.gameName === "COLORGAME");
@@ -35,6 +42,8 @@ const ColorGameMarketsScreen = () => {
         }
     };
 
+    console.log('markets:markets', markets);
+
     useEffect(() => {
         fetchData();
     }, []);
@@ -51,16 +60,21 @@ const ColorGameMarketsScreen = () => {
     };
 
     const handleMarketPress = (market) => {
-        navigation.navigate('ColorGamePlayScreen', { 
+        navigation.navigate('ColorGamePlayScreen', {
+            gameId: markets.gameId,
             marketId: market.marketId,
-            marketName: market.marketName 
+            marketName: market.marketName
+        });
+        dispatch({
+            type: 'UPDATE_PLACE_BIDDING',
+            payload: { marketId: market.marketId }
         });
     };
 
     const renderMarketItem = ({ item }) => {
         const statusColor = item.isActive ? '#4CAF50' : '#F44336';
         const statusText = item.isActive ? 'ACTIVE' : 'INACTIVE';
-        
+
         return (
             <TouchableOpacity
                 style={[

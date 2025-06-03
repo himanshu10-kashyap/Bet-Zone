@@ -174,13 +174,13 @@ const LotteryMarketDetailScreen = () => {
     const hours = Math.floor((seconds % (3600 * 24)) / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
     const secs = seconds % 60;
-    
+
     return `${days}D : ${hours}H : ${mins}M : ${secs}S`;
   };
 
   const handleSearch = async () => {
     if (!marketData?.isActive) return;
-    
+
     if (!selectedGroup || !selectedSeries || !selectedNumber) {
       Alert.alert('Error', 'Please select Group, Series and Number');
       return;
@@ -188,7 +188,7 @@ const LotteryMarketDetailScreen = () => {
 
     try {
       setSearchLoading(true);
-      
+
       const searchResults = await searchTicket({
         group: selectedGroup.value,
         series: selectedSeries.value,
@@ -218,14 +218,14 @@ const LotteryMarketDetailScreen = () => {
 
   const renderTimer = () => {
     if (!marketData) return null;
-    
+
     const now = new Date();
     const start = new Date(marketData.start_time);
     const end = new Date(marketData.end_time);
-    
+
     let status = '';
     let timerColor = '#FF3B30';
-    
+
     if (!marketData.isActive) {
       status = 'Completed';
       timerColor = '#8E8E93';
@@ -239,7 +239,7 @@ const LotteryMarketDetailScreen = () => {
       status = 'Completed';
       timerColor = '#8E8E93';
     }
-    
+
     return (
       <View style={styles.timerContainer}>
         <View style={[styles.timerIndicator, { backgroundColor: timerColor }]} />
@@ -255,7 +255,7 @@ const LotteryMarketDetailScreen = () => {
 
   const openDropdown = (type) => {
     if (!marketData?.isActive) return;
-    
+
     let data = [];
     switch (type) {
       case 'sem':
@@ -353,7 +353,7 @@ const LotteryMarketDetailScreen = () => {
         {/* Market Info Card */}
         <View style={styles.marketCard}>
           <Text style={styles.marketName}>{marketName || 'Lottery Market'}</Text>
-          
+
           <View style={styles.timeContainer}>
             <View style={styles.timeRow}>
               <Text style={styles.timeLabel}>Price:</Text>
@@ -368,7 +368,7 @@ const LotteryMarketDetailScreen = () => {
               <Text style={styles.timeValue}>{new Date(marketData.end_time).toLocaleString()}</Text>
             </View>
           </View>
-          
+
           {renderTimer()}
         </View>
 

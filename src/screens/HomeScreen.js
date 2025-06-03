@@ -13,6 +13,8 @@ import {
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import { useNavigation } from '@react-navigation/native';
 import { fetchSliderImages, fetchAllMarkets, fetchAllGameData } from '../services/authService';
+// import { collection, onSnapshot } from "firebase/firestore";
+// import { db } from '../utilities/firebase';
 
 const Tab = createMaterialTopTabNavigator();
 const { width } = Dimensions.get('window');
@@ -151,8 +153,10 @@ function LotteryTab() {
   useEffect(() => {
     const loadMarkets = async () => {
       try {
-        const data = await fetchAllMarkets();
-        setMarkets(data);
+        const response = await fetchAllGameData();
+        // Filter to only get Lottery game markets
+        const lotteryGame = response.data.find(game => game.gameName === "Lottery");
+        setMarkets(lotteryGame?.markets || []);
       } catch (error) {
         console.error('Error loading markets:', error);
       } finally {
@@ -172,7 +176,10 @@ function LotteryTab() {
   const renderMarketItem = ({ item }) => (
     <TouchableOpacity 
       style={styles.marketCard}
-      onPress={() => navigation.navigate('LotteryPlayScreen', { marketId: item.marketId })}
+      onPress={() => navigation.navigate('LotteryMarketDetailScreen', { 
+        marketId: item.marketId,
+        marketName: item.marketName,
+      })}
     >
       <View style={styles.marketHeader}>
         <Text style={styles.marketName}>{item.marketName}</Text>
@@ -182,6 +189,10 @@ function LotteryTab() {
       </View>
       
       <View style={styles.detailsContainer}>
+        <View style={styles.detailRow}>
+          <Text style={styles.detailLabel}>Price:</Text>
+          <Text style={styles.detailValue}>₹{item.price}</Text>
+        </View>
         <View style={styles.detailRow}>
           <Text style={styles.detailLabel}>Start Time:</Text>
           <Text style={styles.detailValue}>{formatDate(item.start_time)}</Text>
@@ -227,6 +238,7 @@ function ColorGameTab() {
   const navigation = useNavigation();
   const [colorGames, setColorGames] = useState([]);
   const [loading, setLoading] = useState(true);
+  // const [isColorgameUpdate, setIsColorgameUpdate] = useState(null);
 
   useEffect(() => {
     const loadColorGames = async () => {
@@ -243,6 +255,23 @@ function ColorGameTab() {
 
     loadColorGames();
   }, []);
+
+  // useEffect(() => {
+  //   const unsubscribe = onSnapshot(
+  //     collection(db, "color-game-db"),
+  //     (snapshot) => {
+  //       const messagesData = snapshot.docs.map((doc) => ({
+  //         id: doc.id,
+  //         ...doc.data(),
+  //       }));
+
+  //       console.log("Messages Data:", messagesData);
+  //       setIsColorgameUpdate(messagesData);
+  //     }
+  //   );
+
+  //   return () => unsubscribe();
+  // }, []);
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';

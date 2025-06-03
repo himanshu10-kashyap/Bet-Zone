@@ -6,7 +6,7 @@ const API_BASE_URL = 'https://cg.server.dummydoma.in/api';
 const DEFAULT_ERROR_MESSAGE = 'Something went wrong. Please try again.';
 
 // Helper function for API requests
-const makeRequest = async (endpoint, method = 'GET', body = null, requiresAuth = true) => {
+const makeRequest = async (endpoint, method = 'GET', body = null, requiresAuth = true, navigation = null) => {
   try {
     const headers = {
       'Content-Type': 'application/json',
@@ -33,8 +33,11 @@ const makeRequest = async (endpoint, method = 'GET', body = null, requiresAuth =
 
     if (!response.ok) {
       // Handle 401 Unauthorized specifically
-      if (response.status === 401) {
-        await AsyncStorage.removeItem('authToken');
+      if (response?.data?.data?.responseCode === 401) {
+        await AsyncStorage.removeItem('accessToken');
+        if (navigation) {
+          navigation.navigate('LoginScreen');
+        }
         throw new Error(data?.errMessage || 'Session expired. Please login again.');
       }
       throw new Error(data?.message || data?.errMessage || `Request failed with status ${response.status}`);
@@ -56,12 +59,12 @@ const makeRequest = async (endpoint, method = 'GET', body = null, requiresAuth =
 export const loginUser = async (credentials) => {
   try {
     const data = await makeRequest('/user-login', 'POST', credentials, false);
-    
+
     // Store token if available
     if (data.token) {
       await AsyncStorage.setItem('accessToken', data.token);
     }
-    
+
     return data;
   } catch (error) {
     Alert.alert('Login Error', error.message);
@@ -91,7 +94,7 @@ export const fetchOpenBets = async (marketId) => {
 
 export const fetchSliderImages = async () => {
   try {
-    const data = await makeRequest('/admin/get-inner-game-img');
+    const data = await makeRequest('/get-inner-game-img');
     // Return only active image URLs
     return (data.data || [])
       .filter(item => item.isActive)
@@ -116,14 +119,14 @@ export const fetchUserWallet = async (userId) => {
 
     const exposure_balance = response.data.marketListExposure
       ? response.data.marketListExposure.reduce((total, marketExposure) => {
-          const exposureAmount = Object.values(marketExposure)[0];
-          return total + (Number(exposureAmount) || 0);
-        }, 0)
+        const exposureAmount = Object.values(marketExposure)[0];
+        return total + (Number(exposureAmount) || 0);
+      }, 0)
       : 0;
 
     console.log('Exposure Balance:', exposure_balance);
     console.log('Wallet Data:', response.data); // Removed the spread operator here
-    
+
     return {
       ...response.data, // This spread is fine - it's spreading object properties
       exposure_balance,
@@ -154,12 +157,12 @@ export const fetchAccountStatement = async ({
     }).toString();
 
     const data = await makeRequest(`/user-account-statement?${queryParams}`, 'GET', null, true);
-    
+
     // Validate and return the data structure
     if (!data || typeof data.success === 'undefined') {
       throw new Error('Invalid account statement data structure');
     }
-    
+
     return {
       success: data.success,
       message: data.message || '',
@@ -193,6 +196,30 @@ export const changePassword = async ({ oldPassword, password, confirmPassword })
   }
 };
 
+export const resetPassword = async ({ userName, oldPassword, newPassword, confirmPassword }) => {
+  try {
+    const response = await makeRequest('/reset-password', 'POST', {
+      userName,
+      oldPassword,
+      newPassword,
+    });
+    if (response && response.success) {
+      return {
+        success: true,
+        message: response.message || 'Password reset successfully'
+      };
+    }
+    return {
+      success: false,
+      message: response?.message || 'Password reset failed'
+    };
+
+  } catch (error) {
+    console.error('Password change error:', error);
+    throw new Error(error);
+  }
+};
+
 export const fetchProfitLoss = async ({
   page = 1,
   limit = 10,
@@ -215,7 +242,7 @@ export const fetchProfitLoss = async ({
     const data = await makeRequest(`/profit_loss?${queryParams}`, 'GET', null, true);
 
     console.log("queryParams", queryParams);
-    
+
 
     // Validate and return the structured response
     return {
@@ -306,7 +333,7 @@ export const fetchLotteryBetHistoryProfitLoss = async (marketId) => {
   }
 };
 
-export const fetchProfitLossByMarketCg = async ({gameId, page = 1, limit = 10, searchMarketName = '' } = {}) => {
+export const fetchProfitLossByMarketCg = async ({ gameId, page = 1, limit = 10, searchMarketName = '' } = {}) => {
   try {
     if (!gameId) {
       throw new Error('Game ID is required');
@@ -373,7 +400,7 @@ export const fetchCgBetHistoryProfitLoss = async (marketId) => {
   }
 };
 
-export const fetchRunnerDetails = async ({runnerId, page = 1, limit = 10 } = {}) => {
+export const fetchRunnerDetails = async ({ runnerId, page = 1, limit = 10 } = {}) => {
   try {
     if (!runnerId) {
       throw new Error('Runner Id is required');
@@ -577,7 +604,7 @@ export const fetchUserActivityLog = async () => {
 export const fetchAllMarkets = async () => {
   try {
     const data = await makeRequest('/user-getAllMarket', 'GET', null, true);
-    
+
     // Return only the data array
     return data.data || [];
   } catch (error) {
@@ -594,7 +621,7 @@ export const fetchAllMarkets = async () => {
 export const fetchAllGameData = async () => {
   try {
     const data = await makeRequest('/user-all-gameData', 'GET', null, true);
-    
+
     // Log the full response for debugging
     console.log("All Game Data Response:", data);
 
@@ -621,10 +648,10 @@ export const fetchAllMarketsByDate = async (date) => {
   try {
     // Format the date parameter (assuming it's a Date object or ISO string)
     const dateParam = date ? new Date(date).toISOString().split('T')[0] : '';
-    
+
     // Make the request with the date parameter
     const data = await makeRequest(`/user/getMarkets?date=${dateParam}`, 'GET', null, true);
-    
+
     // Return the data array or empty array if not available
     return data.data || [];
   } catch (error) {
@@ -848,7 +875,115 @@ export const searchTicket = async ({ group, series, number, sem, marketId }) => 
   }
 };
 
+export const purchaseLottery = async (marketId, { generateId, lotteryPrice }) => {
+  try {
+    if (!marketId) {
+      throw new Error('Market ID is required');
+    }
+    if (!generateId) {
+      throw new Error('Generate ID is required');
+    }
+    if (!lotteryPrice) {
+      throw new Error('Lottery price is required');
+    }
+
+    // Prepare request body
+    const requestBody = {
+      generateId,
+      lotteryPrice
+    };
+
+    // Make the API request
+    const data = await makeRequest(
+      `/purchase-lottery/${marketId}`,
+      'POST',
+      requestBody,
+      true
+    );
+
+    // Log the response for debugging
+    console.log('Purchase Lottery Response:', data);
+
+    // Validate and structure the response
+    return {
+      success: data.success || false,
+      message: data.message || '',
+      data: data.data || null,
+      ...(data.pagination && { pagination: data.pagination })
+    };
+
+  } catch (error) {
+    console.error('Purchase Lottery Error:', error);
+    Alert.alert(
+      'Purchase Error',
+      error.message || 'Could not complete lottery purchase'
+    );
+    throw error;
+  }
+};
+
+export const placeBid = async ({
+  userId,
+  gameId,
+  marketId,
+  runnerId,
+  value,
+  bidType,
+  marketListExposure
+}) => {
+  try {
+    // Validate required parameters
+    if (!userId || !gameId || !marketId || !runnerId || !value || !bidType) {
+      throw new Error('Missing required parameters for placing bid');
+    }
+
+    // Prepare request body
+    const requestBody = {
+      userId,
+      gameId,
+      marketId,
+      runnerId,
+      value: Number(value),
+      bidType,
+      ...(marketListExposure && { marketListExposure })
+    };
+
+    // Make the API request
+    const data = await makeRequest('/user-bidding', 'POST', requestBody, true);
+
+    // Log the response for debugging
+    console.log('Place Bid Response:', data);
+
+    // Validate and structure the response
+    return {
+      success: data.success || false,
+      message: data.message || '',
+      data: data.data || null,
+      ...(data.pagination && { pagination: data.pagination })
+    };
+
+  } catch (error) {
+    console.error('Place Bid Error:', error);
+    Alert.alert(
+      'Bid Error',
+      error.message || 'Could not place bid'
+    );
+    throw error;
+  }
+};
+
+export const userBidding = async (body = {}) => {
+  try {
+    // const callParams = await getCallParams(strings.POST, body, isToast);
+    const response = await makeRequest('/user-bidding', 'POST', body, true);
+    console.log('Place Bid Response:', response);
+    return response;
+  } catch (error) {
+    throw error;
+  }
+}
+
 // Add this to handle token cleanup on logout
 export const logoutUser = async () => {
-  await AsyncStorage.removeItem('authToken');
+  await AsyncStorage.removeItem('accessToken');
 };

@@ -12,7 +12,7 @@ const DrawerHeader = () => {
   
   const { store } = useAppContext();
   const user = store.user; // Get user from store
-  console.log('user:nnnnnnnnnnnnnnnnnnnnnnn', user);
+  console.log('user:nnnnnnnnnnnnnnnnnnnnnnn', store);
   
   const isAuthenticated = user?.isLogin; // Check if user is logged in
 
@@ -88,14 +88,14 @@ const DrawerHeader = () => {
             <View style={styles.balanceItem}>
               <Icon name="wallet" size={18} color="#fff" />
               <Text style={styles.balanceText}>
-                ₹{walletData.balance}
+                ₹{store.user.wallet.balance}
               </Text>
             </View>
             
             <View style={styles.balanceItem}>
               <Icon name="alert-circle" size={18} color="#fff" />
               <Text style={styles.balanceText}>
-                ₹{walletData.exposure_balance}
+                ₹{store.user.wallet.exposure}
               </Text>
             </View>
           </View>
