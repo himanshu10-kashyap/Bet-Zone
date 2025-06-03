@@ -101,8 +101,8 @@ const LotteryPurchaseScreen = () => {
       </View>
       <View style={styles.row}>
         <Text style={styles.label}>Tickets:</Text>
-        <TouchableOpacity 
-          style={styles.ticketsContainer} 
+        <TouchableOpacity
+          style={styles.ticketsContainer}
           onPress={() => handleTicketsPress(item.tickets)}
         >
           <Text style={styles.ticketCount}>{item.tickets.length} tickets (tap to view)</Text>
@@ -123,13 +123,13 @@ const LotteryPurchaseScreen = () => {
       {/* Fixed Filter Container */}
       <View style={styles.filterContainer}>
         {/* Date Picker */}
-        <TouchableOpacity 
-          style={styles.dateButton} 
+        <TouchableOpacity
+          style={styles.dateButton}
           onPress={() => setShowPicker(true)}
         >
           <Text style={styles.dateButtonText}>Date: {date.toLocaleDateString()}</Text>
         </TouchableOpacity>
-        
+
         {showPicker && (
           <DateTimePicker
             value={date}
@@ -142,8 +142,8 @@ const LotteryPurchaseScreen = () => {
         {/* Market Selection */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Select Market</Text>
-          <ScrollView 
-            horizontal 
+          <ScrollView
+            horizontal
             showsHorizontalScrollIndicator={false}
             style={styles.marketScroll}
           >
@@ -222,7 +222,7 @@ const LotteryPurchaseScreen = () => {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Tickets Details</Text>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.closeButton}
                 onPress={() => setModalVisible(false)}
               >

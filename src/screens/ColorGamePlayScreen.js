@@ -33,19 +33,41 @@ const ColorGamePlayScreen = ({ route }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [bidding, setBidding] = useState({ amount: 0, rate: 0 });
-  const [toggle, setToggle] = useState({ toggleOpen: false,
+  const [toggle, setToggle] = useState({
+    toggleOpen: false,
     indexNo: "",
     mode: "",
     stateindex: 0,
-    runnerName: "", });
+    runnerName: "",
+  });
   const [preExposure, setPreExposure] = useState(0);
   const [placingBet, setPlacingBet] = useState(false);
   // const [isUpdate, setIsUpdate] = useState(null);
   const navigation = useNavigation();
-  
+
   const timerRef = useRef(null);
   // let arr = [];
   const [arr, setArr] = useState([]);
+  const [isUpdate, setIsUpdate] = useState(null);
+
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, "color-game-db"), (snapshot) => {
+      const messagesData = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      messagesData.map((message) => {
+        if (marketId === message.id) {
+          setIsUpdate(message.updatedAt);
+          if (!message.inactiveGame) {
+            navigation.replace('HomeTab');
+          }
+        }
+      });
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const fetchMarketData = async () => {
     try {
@@ -57,7 +79,7 @@ const ColorGamePlayScreen = ({ route }) => {
         type: strings.isLoading,
         payload: true,
       });
-      
+
       const response = await fetchFilteredMarketData(marketId, userId);
 
       dispatch({
@@ -91,40 +113,6 @@ const ColorGamePlayScreen = ({ route }) => {
       setArr(newBetArr);
     }
   }, [bidding.amount]);
-
-  // Fire base code
-
-  // useEffect(() => {
-  //   const unsubscribe = onSnapshot(
-  //     collection(db, "color-game-db"),
-  //     (snapshot) => {
-  //       const messagesData = snapshot.docs.map((doc) => ({
-  //         id: doc.id,
-  //         ...doc.data(),
-  //       }));
-
-  //       console.log("Messages Data:", messagesData);
-  //       messagesData.map((message) => {
-  //         if (store?.placeBidding?.marketId === message?.id) {
-  //           console.log(
-  //             "Filtered Message ID:",
-  //             message.id,
-  //             store?.placeBidding?.marketId
-  //           );
-  //           setIsActive(message.isActive);
-  //           setIsUpdate(message.updatedAt);
-  //           if (message.hideMarketUser === false) {
-  //             navigation.navigate('HomeScreen');
-  //           }
-  //         }
-  //       });
-  //     }
-  //   );
-
-  //   return () => unsubscribe();
-  // }, []);
-
-  // firebase 
 
   // Helper functions
   const showToast = (message) => {
@@ -166,7 +154,7 @@ const ColorGamePlayScreen = ({ route }) => {
         foundNegative = true;
       }
     }
-     console.log("lowestNegative", lowestNegative);
+    console.log("lowestNegative", lowestNegative);
     return foundNegative ? lowestNegative : 0;
   }
 
@@ -267,7 +255,7 @@ const ColorGamePlayScreen = ({ route }) => {
   const handleUserBidding = async (index, amount, mode) => {
     try {
       setPlacingBet(true);
-      
+
       let difference = 0;
       let bal = 0;
 
@@ -376,9 +364,9 @@ const ColorGamePlayScreen = ({ route }) => {
         wallet: bal,
         marketListExposure: marketListExposureUpdated ?? [],
       };
-       
+
       console.log("values", values);
-      
+
 
       const response = await userBidding(values);
 
@@ -753,7 +741,7 @@ const ColorGamePlayScreen = ({ route }) => {
         clearInterval(timerRef.current);
       }
     };
-  }, [marketId, userId]);
+  }, [marketId, userId, isUpdate]);
 
   // Loading and error states
   if (loading && !refreshing) {

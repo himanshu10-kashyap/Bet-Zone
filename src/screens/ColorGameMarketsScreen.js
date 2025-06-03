@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { fetchAllGameData } from '../services/authService.js';
-import strings from '../utilities/stringConstant.js';
 import { useAppContext } from '../redux/context.js';
+import { collection, onSnapshot } from "firebase/firestore";
+import { db } from "../utilities/firebase.js";
 
 const ColorGameMarketsScreen = () => {
     const navigation = useNavigation();
@@ -12,19 +13,18 @@ const ColorGameMarketsScreen = () => {
     const [error, setError] = useState(null);
     const [refreshing, setRefreshing] = useState(false);
     const { store, dispatch } = useAppContext();
-
+    const [isColorgameUpdate, setIsColorgameUpdate] = useState(null);
     const fetchData = async () => {
         try {
             setLoading(true);
             const response = await fetchAllGameData();
-            console.log('responseMarketeeee', response);
             dispatch({
                 type: 'UPDATE_PLACE_BIDDING',
                 payload: { gameId: response.data[0].gameId }
             });
             if (response.success && response.data) {
                 // Filter to only show COLORGAME markets
-                const colorGame = response.data.find(game => game.gameName === "COLORGAME");
+                const colorGame = response.data.find(game => game.gameName === "Colorgame");
                 if (colorGame) {
                     setMarkets(colorGame.markets || []);
                 } else {
@@ -42,11 +42,25 @@ const ColorGameMarketsScreen = () => {
         }
     };
 
-    console.log('markets:markets', markets);
+    useEffect(() => {
+        const unsubscribe = onSnapshot(
+            collection(db, "color-game-db"),
+            (snapshot) => {
+                const messagesData = snapshot.docs.map((doc) => ({
+                    id: doc.id,
+                    ...doc.data(),
+                }));
+
+                setIsColorgameUpdate(messagesData);
+            }
+        );
+
+        return () => unsubscribe();
+    }, []);
 
     useEffect(() => {
         fetchData();
-    }, []);
+    }, [isColorgameUpdate]);
 
     const onRefresh = () => {
         setRefreshing(true);

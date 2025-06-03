@@ -1,11 +1,11 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  Dimensions, 
-  Image, 
-  FlatList, 
+import {
+  View,
+  Text,
+  StyleSheet,
+  Dimensions,
+  Image,
+  FlatList,
   ActivityIndicator,
   TouchableOpacity,
   SafeAreaView
@@ -13,8 +13,8 @@ import {
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import { useNavigation } from '@react-navigation/native';
 import { fetchSliderImages, fetchAllMarkets, fetchAllGameData } from '../services/authService';
-// import { collection, onSnapshot } from "firebase/firestore";
-// import { db } from '../utilities/firebase';
+import { collection, onSnapshot } from "firebase/firestore";
+import { db } from "../utilities/firebase.js";
 
 const Tab = createMaterialTopTabNavigator();
 const { width } = Dimensions.get('window');
@@ -68,12 +68,12 @@ function ImageSlider() {
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
-        onScrollToIndexFailed={() => {}}
+        onScrollToIndexFailed={() => { }}
       />
       {images.length > 0 && (
         <View style={styles.pagination}>
           {images.map((_, index) => (
-            <View 
+            <View
               key={index}
               style={[
                 styles.paginationDot,
@@ -117,8 +117,8 @@ function HomeTab() {
     <View style={styles.gameCard}>
       <Text style={styles.gameTitle}>{item.gameName}</Text>
       {item.markets?.map(market => (
-        <TouchableOpacity 
-          key={market.marketId} 
+        <TouchableOpacity
+          key={market.marketId}
           style={styles.marketItem}
           onPress={() => navigation.navigate('GameDetailsScreen', { marketId: market.marketId })}
         >
@@ -149,6 +149,20 @@ function LotteryTab() {
   const navigation = useNavigation();
   const [markets, setMarkets] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isLotterygameUpdate, setIsLotterygameUpdate] = useState(null);
+
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, "lottery-db"), (snapshot) => {
+      const messagesData = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      console.log("Lottery data updated:", messagesData);
+      setIsLotterygameUpdate(messagesData);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     const loadMarkets = async () => {
@@ -165,7 +179,7 @@ function LotteryTab() {
     };
 
     loadMarkets();
-  }, []);
+  }, [isLotterygameUpdate]);
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
@@ -174,9 +188,9 @@ function LotteryTab() {
   };
 
   const renderMarketItem = ({ item }) => (
-    <TouchableOpacity 
+    <TouchableOpacity
       style={styles.marketCard}
-      onPress={() => navigation.navigate('LotteryMarketDetailScreen', { 
+      onPress={() => navigation.navigate('LotteryMarketDetailScreen', {
         marketId: item.marketId,
         marketName: item.marketName,
       })}
@@ -187,7 +201,7 @@ function LotteryTab() {
           <Text style={styles.statusText}>{item.isActive ? 'ACTIVE' : 'INACTIVE'}</Text>
         </View>
       </View>
-      
+
       <View style={styles.detailsContainer}>
         <View style={styles.detailRow}>
           <Text style={styles.detailLabel}>Price:</Text>
@@ -238,13 +252,29 @@ function ColorGameTab() {
   const navigation = useNavigation();
   const [colorGames, setColorGames] = useState([]);
   const [loading, setLoading] = useState(true);
-  // const [isColorgameUpdate, setIsColorgameUpdate] = useState(null);
+  const [isColorgameUpdate, setIsColorgameUpdate] = useState(null);
+
+  useEffect(() => {
+    const unsubscribe = onSnapshot(
+      collection(db, "color-game-db"),
+      (snapshot) => {
+        const messagesData = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+
+        setIsColorgameUpdate(messagesData);
+      }
+    );
+
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     const loadColorGames = async () => {
       try {
         const response = await fetchAllGameData();
-        const colorGameData = response.data.find(game => game.gameName === 'COLORGAME');
+        const colorGameData = response.data.find(game => game.gameName === 'Colorgame');
         setColorGames(colorGameData?.markets || []);
       } catch (error) {
         console.error('Error loading color games:', error);
@@ -254,24 +284,7 @@ function ColorGameTab() {
     };
 
     loadColorGames();
-  }, []);
-
-  // useEffect(() => {
-  //   const unsubscribe = onSnapshot(
-  //     collection(db, "color-game-db"),
-  //     (snapshot) => {
-  //       const messagesData = snapshot.docs.map((doc) => ({
-  //         id: doc.id,
-  //         ...doc.data(),
-  //       }));
-
-  //       console.log("Messages Data:", messagesData);
-  //       setIsColorgameUpdate(messagesData);
-  //     }
-  //   );
-
-  //   return () => unsubscribe();
-  // }, []);
+  }, [isColorgameUpdate]);
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
@@ -285,7 +298,7 @@ function ColorGameTab() {
     const layValue = firstRunner?.rate?.[0]?.lay || 'N/A';
 
     return (
-      <TouchableOpacity 
+      <TouchableOpacity
         style={[
           styles.marketCard,
           item.isActive ? styles.activeMarket : styles.inactiveMarket
@@ -298,13 +311,13 @@ function ColorGameTab() {
             <Text style={styles.statusText}>{item.isActive ? 'ACTIVE' : 'INACTIVE'}</Text>
           </View>
         </View>
-        
+
         <View style={styles.detailsContainer}>
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Start Time:</Text>
             <Text style={styles.detailValue}>{formatDate(item.startTime)}</Text>
           </View>
-          
+
           <View style={styles.oddsContainer}>
             <View style={styles.backBox}>
               <Text style={styles.oddLabel}>Back</Text>
@@ -351,16 +364,16 @@ export default function HomeScreen() {
       <ImageSlider />
       <Tab.Navigator
         screenOptions={{
-          tabBarLabelStyle: { 
-            fontSize: 14, 
+          tabBarLabelStyle: {
+            fontSize: 14,
             fontWeight: 'bold',
-            textTransform: 'none', 
+            textTransform: 'none',
           },
-          tabBarIndicatorStyle: { 
+          tabBarIndicatorStyle: {
             backgroundColor: '#3F51B5',
             height: 3,
           },
-          tabBarStyle: { 
+          tabBarStyle: {
             backgroundColor: 'white',
             elevation: 0,
             shadowOpacity: 0,

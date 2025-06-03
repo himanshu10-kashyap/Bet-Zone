@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, RefreshControl } from 'react-native';
 import { fetchAllGameData } from '../services/authService.js';
 import { useNavigation } from '@react-navigation/native';
+import { collection, onSnapshot } from "firebase/firestore";
+import { db } from "../utilities/firebase.js";
 
 const LotteryScreen = () => {
   const navigation = useNavigation();
@@ -9,12 +11,13 @@ const LotteryScreen = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [isLotterygameUpdate, setIsLotterygameUpdate] = useState(null);
 
   const loadData = async () => {
     try {
       setLoading(true);
       const response = await fetchAllGameData();
-      
+
       if (response.success) {
         const lotteryGame = response.data.find(game => game.gameName === "Lottery");
         if (lotteryGame) {
@@ -35,8 +38,21 @@ const LotteryScreen = () => {
   };
 
   useEffect(() => {
-    loadData();
+    const unsubscribe = onSnapshot(collection(db, "lottery-db"), (snapshot) => {
+      const messagesData = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      console.log("Lottery data updated:", messagesData);
+      setIsLotterygameUpdate(messagesData);
+    });
+
+    return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [isLotterygameUpdate]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -50,18 +66,18 @@ const LotteryScreen = () => {
   };
 
   const handleMarketPress = (market) => {
-    navigation.navigate('LotteryMarketDetailScreen', { 
-      marketId: market.marketId, 
-      marketName: market.marketName 
+    navigation.navigate('LotteryMarketDetailScreen', {
+      marketId: market.marketId,
+      marketName: market.marketName
     });
   };
 
   const renderMarketItem = ({ item }) => {
     const statusColor = item.isActive ? '#4CAF50' : '#F44336';
     const statusText = item.isActive ? 'ACTIVE' : 'INACTIVE';
-    
+
     return (
-      <TouchableOpacity 
+      <TouchableOpacity
         style={[
           styles.marketCard,
           styles.itemContainer,
@@ -75,7 +91,7 @@ const LotteryScreen = () => {
             <Text style={styles.statusText}>{statusText}</Text>
           </View>
         </View>
-        
+
         <View style={styles.detailsContainer}>
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Group Start:</Text>

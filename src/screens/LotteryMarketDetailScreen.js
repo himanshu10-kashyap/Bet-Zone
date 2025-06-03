@@ -15,6 +15,8 @@ import {
 import { fetchLotteryRanges, searchTicket } from '../services/authService';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { generateLotteryOptions } from '../utilities/genrateLottery';
+import { collection, onSnapshot } from "firebase/firestore";
+import { db } from "../utilities/firebase.js";
 
 const { width, height } = Dimensions.get('window');
 
@@ -29,6 +31,7 @@ const LotteryMarketDetailScreen = () => {
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(0);
+  const [isUpdate, setIsUpdate] = useState(null);
 
   // Selected values state
   const [selectedSem, setSelectedSem] = useState(null);
@@ -64,6 +67,26 @@ const LotteryMarketDetailScreen = () => {
     setSelectedSeries(null);
     setSelectedNumber(null);
   };
+
+  useEffect(() => {
+    console.log('INNNNNNNN');
+    const unsubscribe = onSnapshot(collection(db, "lottery-db"), (snapshot) => {
+      const messagesData = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      messagesData.map((message) => {
+        if (marketId === message.id) {
+          setIsUpdate(message.updatedAt);
+          if (!message.inactiveGame) {
+            navigation.replace('HomeTab');
+          }
+        }
+      });
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const loadMarketData = async () => {
     try {
@@ -137,7 +160,7 @@ const LotteryMarketDetailScreen = () => {
         clearInterval(timerRef.current);
       }
     };
-  }, [marketId]);
+  }, [marketId, isUpdate]);
 
   useEffect(() => {
     if (timerRef.current) {
